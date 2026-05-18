@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -6,7 +7,8 @@ import { CreateUserSchema, LoginUserSchema, RoomSchema, getValidationMessage } f
 import { JWT_SECRET } from '@repo/backend-common/config';
 
 const app = express();
-const PORT = process.env.PORT || 3005;
+app.use(express.json());
+const PORT = process.env.PORT || 3000;
 
 app.post("/api/v1/signup", async (req, res) => {
   const parsed = CreateUserSchema.safeParse(req.body);
