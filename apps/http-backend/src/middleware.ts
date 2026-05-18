@@ -1,8 +1,8 @@
 import { NextFunction, Request, Response } from "express";
-import jwt, { TokenExpiredError } from "jsonwebtoken";
+import jwt, { TokenExpiredError, JwtPayload } from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend-common/config";
 
-interface JwtPayload {
+interface UserPayload extends JwtPayload {
   userId: string;
   email: string;
 }
@@ -22,7 +22,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   }
 
   try {
-    const decodedData = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    const decodedData = jwt.verify(token, JWT_SECRET) as UserPayload;
     req.user = decodedData;
     next();
   } catch (err) {
