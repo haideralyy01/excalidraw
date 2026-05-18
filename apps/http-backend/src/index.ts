@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { prismaClient } from "@repo/db/client";
 import { CreateUserSchema, LoginUserSchema, RoomSchema, getValidationMessage } from "@repo/common/schema";
 import { JWT_SECRET } from '@repo/backend-common/config';
+import { authenticateToken } from "./middleware"
 
 const app = express();
 app.use(express.json());
@@ -64,6 +65,31 @@ app.post("/api/v1/login", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
     }
 });
+
+app.post("/api/v1/room", authenticateToken, async (req, res) => {
+  const parsed = RoomSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(409).json({message: getValidationMessage(parsed.error)});
+  }
+  const { name } = parsed.data;
+  const userId = req.userId;
+  try {
+    const existingRoom = await prismaClient.room.findUnique({ where: { slug: name } });
+    if (existingRoom) {
+      return res.status(409).json({ message: "Room already exists" });
+    }
+    const newRoom = await prismaClient.room.create({
+      data: {
+        slug: name,
+        adminId: userId
+      },
+    });
+    res.status(201).json({ message: "Room created successfully", room: { name: newRoom.slug, roomId: newRoom.id } });
+  } catch (e: any) {
+    console.error("Error creating room:", e);
+    res.status(500).json({ message: "Internal server error" });
+  }
+})
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

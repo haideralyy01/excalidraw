@@ -10,7 +10,7 @@ interface UserPayload extends JwtPayload {
 declare global {
   namespace Express {
     interface Request {
-      user?: JwtPayload;
+      userId: string;
     }
   }
 }
@@ -23,7 +23,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
 
   try {
     const decodedData = jwt.verify(token, JWT_SECRET) as UserPayload;
-    req.user = decodedData;
+    req.userId = decodedData.userId;
     next();
   } catch (err) {
     if (err instanceof TokenExpiredError) {
