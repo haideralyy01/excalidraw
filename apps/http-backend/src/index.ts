@@ -9,7 +9,7 @@ import { authenticateToken } from "./middleware"
 
 const app = express();
 app.use(express.json());
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8000;
 
 app.post("/api/v1/signup", async (req, res) => {
   const parsed = CreateUserSchema.safeParse(req.body);
@@ -89,7 +89,35 @@ app.post("/api/v1/room", authenticateToken, async (req, res) => {
     console.error("Error creating room:", e);
     res.status(500).json({ message: "Internal server error" });
   }
-})
+});
+
+app.get("/api/v1/chats/:roomId", async (req, res) => {
+  const roomId = Number(req.params.roomId);
+  try {
+    const chats = await prismaClient.chat.findMany({
+      where: { roomId },
+      orderBy: { id: "desc" }
+    });
+    res.status(200).json({ chats: chats });
+  } catch (e: any) {
+    console.error("Error fetching chats:", e);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.get("/api/v1/room/:slug", async (req, res) => {
+  const roomName = req.params.slug;
+  try {
+    const room = await prismaClient.room.findUnique({ where: { slug: roomName }   });
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+    res.status(200).json({ room: { name: room.slug, roomId: room.id } });
+  } catch (e: any) {
+    console.error("Error fetching room:", e);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
