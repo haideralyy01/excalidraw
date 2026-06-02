@@ -13,6 +13,7 @@
   "dependencies": {
     "@org/styles": "workspace:*",
     "@repo/ui": "workspace:*",
+    "axios": "^1.16.1",
     "next": "16.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
