@@ -28,6 +28,36 @@
   }
 }
 
+/* ── Component Styles ────────────────────────────────────── */
+@layer components {
+  .btn-primary {
+    background: linear-gradient(135deg, #a8a5ff 0%, #7b78d9 100%);
+    color: #121212;
+    border: none;
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(135deg, #b5b3ff 0%, #9290e0 100%);
+      box-shadow: 0 8px 30px rgba(168, 165, 255, 0.3);
+    }
+
+    &:active:not(:disabled) {
+      background: linear-gradient(135deg, #8a87e0 0%, #6e6bc4 100%);
+      transform: scale(0.98);
+      box-shadow: none;
+    }
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: #a8a5ff;
+    border: 1.5px solid #2e2e38;
+
+    &:hover:not(:disabled) {
+      background: rgba(168, 165, 255, 0.08);
+    }
+  }
+}
+
 /* ── Keyframe Animations ─────────────────────────────────── */
 @keyframes float {
   0%,
@@ -108,4 +138,9 @@
     rgba(168, 165, 255, 0.2),
     transparent
   );
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 165, 255, 0.2) transparent;
 }

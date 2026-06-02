@@ -6,7 +6,7 @@ export function AuthIllustration() {
       viewBox="0 0 500 500"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      style={{ width: "100%", maxWidth: 400, height: "auto" }}
+      className="w-full max-w-[400px] h-auto"
     >
       {/* Background glow */}
       <defs>

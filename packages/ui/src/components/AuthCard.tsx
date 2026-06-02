@@ -53,19 +53,19 @@ export function AuthCard({
   };
 
   return (
-    <div style={styles.card}>
+    <div className="relative w-full max-w-[440px] min-h-[580px] bg-[rgba(35,35,41,0.6)] backdrop-blur-[20px] rounded-[20px] border border-[rgba(168,165,255,0.1)] px-9 py-8 box-border z-1 flex flex-col">
       {/* Subtle glow behind card */}
-      <div style={styles.glowEffect} />
+      <div className="absolute -top-px -left-px -right-px -bottom-px rounded-[21px] bg-linear-[135deg] from-[rgba(168,165,255,0.15)] via-transparent to-[rgba(168,165,255,0.08)] -z-1 pointer-events-none" />
 
       {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.logoWrapper}>
+      <div className="text-center mb-5">
+        <div className="flex justify-center mb-3">
           <ExcalidrawLogo size={36} />
         </div>
-        <h1 style={styles.title}>
+        <h1 className="text-[26px] font-bold text-[#f0f0f5] m-0 tracking-[-0.02em] leading-[1.2]">
           {isLogin ? "Welcome back" : "Create account"}
         </h1>
-        <p style={styles.subtitle}>
+        <p className="text-sm text-[#7a7a8a] mt-1.5 mb-0 leading-normal">
           {isLogin
             ? "Sign in to continue to Excalidraw"
             : "Sign up to get started with Excalidraw"}
@@ -73,40 +73,44 @@ export function AuthCard({
       </div>
 
       {/* Tabs */}
-      <div style={styles.tabContainer}>
+      <div className="relative flex bg-[#1a1a22] rounded-xl p-1 mb-4 overflow-hidden">
         <button
           id="auth-tab-login"
           type="button"
-          onClick={() => { setMode("login"); setName(""); setEmail(""); setPassword(""); }}
-          style={{
-            ...styles.tab,
-            ...(isLogin ? styles.tabActive : {}),
+          onClick={() => {
+            setMode("login");
+            setName("");
+            setEmail("");
+            setPassword("");
           }}
+          className={`flex-1 py-2.5 bg-transparent border-none text-[13px] font-semibold cursor-pointer rounded-lg transition-colors duration-200 relative z-2 tracking-[0.02em] ${isLogin ? "text-[#f0f0f5]" : "text-[#6b6b7b]"}`}
         >
           Sign In
         </button>
         <button
           id="auth-tab-signup"
           type="button"
-          onClick={() => { setMode("signup"); setName(""); setEmail(""); setPassword(""); }}
-          style={{
-            ...styles.tab,
-            ...(!isLogin ? styles.tabActive : {}),
+          onClick={() => {
+            setMode("signup");
+            setName("");
+            setEmail("");
+            setPassword("");
           }}
+          className={`flex-1 py-2.5 bg-transparent border-none text-[13px] font-semibold cursor-pointer rounded-lg transition-colors duration-200 relative z-2 tracking-[0.02em] ${!isLogin ? "text-[#f0f0f5]" : "text-[#6b6b7b]"}`}
         >
           Sign Up
         </button>
         {/* Active indicator */}
         <div
+          className="absolute top-1 left-1 w-[calc(50%-4px)] h-[calc(100%-8px)] bg-[rgba(168,165,255,0.12)] rounded-lg transition-transform duration-300 ease-in-out z-1"
           style={{
-            ...styles.tabIndicator,
             transform: isLogin ? "translateX(0)" : "translateX(100%)",
           }}
         />
       </div>
 
       {/* Social buttons */}
-      <div style={styles.socialRow}>
+      <div className="flex gap-3 mb-3">
         <SocialButton
           id="auth-google-btn"
           icon={<GoogleIcon size={18} />}
@@ -126,18 +130,9 @@ export function AuthCard({
       <Divider text="or continue with email" />
 
       {/* Form */}
-      <form onSubmit={handleSubmit} style={styles.form}>
+      <form onSubmit={handleSubmit} className="mt-3 flex flex-col flex-1">
         {!isLogin && (
-          <div
-            style={{
-              ...styles.fieldWrapper,
-              maxHeight: isLogin ? 0 : 90,
-              opacity: isLogin ? 0 : 1,
-              marginBottom: isLogin ? 0 : 16,
-              overflow: "hidden",
-              transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
-            }}
-          >
+          <div className="mb-3">
             <InputField
               id="auth-name"
               label="Full Name"
@@ -152,7 +147,7 @@ export function AuthCard({
           </div>
         )}
 
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-3">
           <InputField
             id="auth-email"
             label="Email Address"
@@ -166,7 +161,7 @@ export function AuthCard({
           />
         </div>
 
-        <div style={{ marginBottom: 24 }}>
+        <div className="mb-3">
           <InputField
             id="auth-password"
             label="Password"
@@ -180,27 +175,32 @@ export function AuthCard({
           />
         </div>
 
-        {isLogin && (
-          <div style={styles.forgotRow}>
-            <a href="#" style={styles.forgotLink}>
-              Forgot password?
-            </a>
-          </div>
-        )}
+        <div className="mt-auto">
+          {isLogin && (
+            <div className="text-right mb-3 -mt-1">
+              <a
+                href="#"
+                className="text-[13px] text-[#a8a5ff] no-underline font-medium cursor-pointer"
+              >
+                Forgot password?
+              </a>
+            </div>
+          )}
 
-        <AuthButton id="auth-submit-btn" type="submit" variant="primary">
-          {isLogin ? "Sign In" : "Create Account"}
-        </AuthButton>
+          <AuthButton id="auth-submit-btn" type="submit" variant="primary">
+            {isLogin ? "Sign In" : "Create Account"}
+          </AuthButton>
+        </div>
       </form>
 
       {/* Footer */}
-      <p style={styles.footer}>
+      <p className="text-center mt-4 text-[13px] text-[#6b6b7b]">
         {isLogin ? "Don't have an account? " : "Already have an account? "}
         <button
           id="auth-switch-mode"
           type="button"
           onClick={switchMode}
-          style={styles.switchButton}
+          className="bg-transparent border-none text-[#a8a5ff] text-[13px] font-semibold cursor-pointer p-0 no-underline"
         >
           {isLogin ? "Sign up" : "Sign in"}
         </button>
@@ -208,129 +208,3 @@ export function AuthCard({
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  card: {
-    position: "relative",
-    width: "100%",
-    maxWidth: 440,
-    background: "rgba(35, 35, 41, 0.6)",
-    backdropFilter: "blur(20px)",
-    WebkitBackdropFilter: "blur(20px)",
-    borderRadius: 20,
-    border: "1px solid rgba(168, 165, 255, 0.1)",
-    padding: "40px 36px",
-    boxSizing: "border-box",
-    zIndex: 1,
-  },
-  glowEffect: {
-    position: "absolute",
-    top: -1,
-    left: -1,
-    right: -1,
-    bottom: -1,
-    borderRadius: 21,
-    background: "linear-gradient(135deg, rgba(168,165,255,0.15) 0%, transparent 50%, rgba(168,165,255,0.08) 100%)",
-    zIndex: -1,
-    pointerEvents: "none",
-  },
-  header: {
-    textAlign: "center",
-    marginBottom: 28,
-  },
-  logoWrapper: {
-    display: "flex",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 700,
-    color: "#f0f0f5",
-    margin: 0,
-    letterSpacing: "-0.02em",
-    lineHeight: 1.2,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#7a7a8a",
-    margin: "8px 0 0 0",
-    lineHeight: 1.5,
-  },
-  tabContainer: {
-    position: "relative",
-    display: "flex",
-    background: "#1a1a22",
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 24,
-    overflow: "hidden",
-  },
-  tab: {
-    flex: 1,
-    padding: "10px 0",
-    background: "none",
-    border: "none",
-    color: "#6b6b7b",
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-    borderRadius: 8,
-    transition: "color 0.25s ease",
-    position: "relative",
-    zIndex: 2,
-    letterSpacing: "0.02em",
-  },
-  tabActive: {
-    color: "#f0f0f5",
-  },
-  tabIndicator: {
-    position: "absolute",
-    top: 4,
-    left: 4,
-    width: "calc(50% - 4px)",
-    height: "calc(100% - 8px)",
-    background: "rgba(168, 165, 255, 0.12)",
-    borderRadius: 8,
-    transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-    zIndex: 1,
-  },
-  socialRow: {
-    display: "flex",
-    gap: 12,
-    marginBottom: 20,
-  },
-  form: {
-    marginTop: 20,
-  },
-  fieldWrapper: {},
-  forgotRow: {
-    textAlign: "right",
-    marginBottom: 20,
-    marginTop: -8,
-  },
-  forgotLink: {
-    fontSize: 13,
-    color: "#a8a5ff",
-    textDecoration: "none",
-    fontWeight: 500,
-    cursor: "pointer",
-  },
-  footer: {
-    textAlign: "center",
-    marginTop: 24,
-    fontSize: 13,
-    color: "#6b6b7b",
-    margin: "24px 0 0 0",
-  },
-  switchButton: {
-    background: "none",
-    border: "none",
-    color: "#a8a5ff",
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-    padding: 0,
-    textDecoration: "none",
-  },
-};

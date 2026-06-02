@@ -20,7 +20,6 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   if (!token) {
     return res.status(401).json({ message: "Missing token" });
   }
-
   try {
     const decodedData = jwt.verify(token, JWT_SECRET) as UserPayload;
     req.userId = decodedData.userId;
