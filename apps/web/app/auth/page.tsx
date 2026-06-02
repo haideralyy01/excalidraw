@@ -3,8 +3,37 @@
 import React from "react";
 import { AuthCard } from "@repo/ui/components/AuthCard";
 import { ExcalidrawLogo } from "@repo/ui/icons/index";
+import axios from "axios";
+import { useRouter } from "next/navigation";
+
+
+const API_BASE = "http://localhost:8000/api/v1";
 
 export default function AuthPage() {
+  const router = useRouter();
+
+  const handleLogin = async (data: {email: string; password: string}) => {
+    try {
+      const response = await axios.post(`${API_BASE}/login`, data);
+      localStorage.setItem("token", response.data.token);
+      router.push("/");
+    } catch (err: any) {
+      const msg = err.response?.data?.message || "Login failed";
+      alert(msg);
+    }
+  };
+
+  const handleSignup = async (data: {name: string; email: string; password: string}) => {
+    try {
+      const response = await axios.post(`${API_BASE}/signup`, data);
+      localStorage.setItem("token", response.data.token);
+      router.push("/");
+    } catch (err: any) {
+      const msg = err.response?.data?.message || "Signup failed";
+      alert(msg);
+    }
+  };
+  
   return (
     <div className="flex min-h-screen bg-[#121212] overflow-hidden">
       {/* Left Panel */}
@@ -62,12 +91,8 @@ export default function AuthPage() {
         <div className="animate-fade-in-up w-full flex justify-center">
           <AuthCard
             defaultMode="login"
-            onLogin={ async (data) => {
-              console.log("Login:", data);
-            }}
-            onSignup={(data) => {
-              console.log("Signup:", data);
-            }}
+            onLogin={handleLogin}
+            onSignup={handleSignup}
             onGoogleAuth={() => {
               console.log("Google auth");
             }}

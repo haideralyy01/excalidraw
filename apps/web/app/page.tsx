@@ -1,7 +1,11 @@
-import { Button } from "@repo/ui/button";
+
 
 export default function Home() {
   return (
-    <Button />
+    <>
+      <div>
+        <h1 className="text-4xl font-bold">Welcome to Excalidraw!</h1>
+      </div>
+    </>
   );
 }

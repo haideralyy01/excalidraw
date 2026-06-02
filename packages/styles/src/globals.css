@@ -1,4 +1,111 @@
+/* ── Theme Tokens ────────────────────────────────────────── */
 @theme {
   --color-primary: oklch(55% 0.19 260);
-  --font-sans: system-ui, -apple-system, sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-caveat: "Caveat", cursive;
+
+  /* Custom animations */
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-glow: pulseGlow 4s ease-in-out infinite;
+  --animate-fade-in-up: fadeInUp 0.6s ease-out both;
+}
+
+/* ── Base Styles ─────────────────────────────────────────── */
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  input:focus {
+    border-color: #a8a5ff !important;
+    box-shadow: 0 0 0 3px rgba(168, 165, 255, 0.12) !important;
+  }
+
+  input::placeholder {
+    color: #4a4a57;
+  }
+}
+
+/* ── Keyframe Animations ─────────────────────────────────── */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Utility Classes ─────────────────────────────────────── */
+@utility animate-pulse-glow-delayed {
+  animation: pulseGlow 5s ease-in-out infinite 1s;
+}
+
+@utility animate-fade-in-up-delayed {
+  animation: fadeInUp 0.8s ease-out 0.3s both;
+}
+
+@utility animate-fade-in-up-delayed-2 {
+  animation: fadeInUp 0.8s ease-out 0.6s both;
+}
+
+@utility bg-gradient-brand {
+  background: linear-gradient(135deg, #f0f0f5 0%, #a8a5ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@utility bg-auth-panel {
+  background: linear-gradient(160deg, #121212 0%, #1a1a2e 40%, #16162a 100%);
+}
+
+@utility bg-auth-dots {
+  background-image: radial-gradient(
+    circle,
+    rgba(168, 165, 255, 0.06) 1px,
+    transparent 1px
+  );
+  background-size: 30px 30px;
+}
+
+@utility bg-auth-radial {
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(168, 165, 255, 0.04) 0%,
+    transparent 70%
+  );
+}
+
+@utility bg-divider-glow {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(168, 165, 255, 0.2),
+    transparent
+  );
 }

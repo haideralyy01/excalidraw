@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from 'express';
 import bcrypt from 'bcrypt';
+import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import { prismaClient } from "@repo/db/client";
 import { CreateUserSchema, LoginUserSchema, RoomSchema, getValidationMessage } from "@repo/common/schema";
@@ -10,6 +11,17 @@ import { authenticateToken } from "./middleware"
 const app = express();
 app.use(express.json());
 const PORT = process.env.PORT || 8000;
+
+const allowedOrigins = [
+  "http://localhost:3000",
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+}));
 
 app.post("/api/v1/signup", async (req, res) => {
   const parsed = CreateUserSchema.safeParse(req.body);
