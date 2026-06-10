@@ -1,11 +1,9 @@
-
+import { Navbar } from "@repo/ui/components/Navbar";
 
 export default function Home() {
   return (
-    <>
-      <div>
-        <h1 className="text-4xl font-bold">Welcome to Excalidraw!</h1>
-      </div>
-    </>
+    <div className="relative min-h-screen bg-[#121212] overflow-hidden">
+      <Navbar />
+    </div>
   );
 }

@@ -7,4 +7,17 @@ export { UserIcon } from "./UserIcon";
 export { GoogleIcon } from "./GoogleIcon";
 export { GithubIcon } from "./GithubIcon";
 export { ExcalidrawLogo } from "./ExcalidrawLogo";
-
+export { ClipboardIcon } from "./ClipboardIcon";
+export { HamburgerIcon } from "./HamburgerIcon";
+export { HandIcon } from "./HandIcon";
+export { CursorIcon } from "./CursorIcon";
+export { RectangleToolIcon } from "./RectangleToolIcon";
+export { DiamondToolIcon } from "./DiamondToolIcon";
+export { CircleToolIcon } from "./CircleToolIcon";
+export { ArrowToolIcon } from "./ArrowToolIcon";
+export { LineToolIcon } from "./LineToolIcon";
+export { PenToolIcon } from "./PenToolIcon";
+export { TextToolIcon } from "./TextToolIcon";
+export { ImageToolIcon } from "./ImageToolIcon";
+export { EraserToolIcon } from "./EraserToolIcon";
+export { MoreToolsIcon } from "./MoreToolsIcon";
