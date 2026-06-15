@@ -20,15 +20,15 @@ export function Button({
   ariaLabel,
 }: ButtonProps) {
   const base =
-    "flex items-center justify-center rounded-lg text-sm font-medium cursor-pointer transition-colors duration-200";
+    "flex items-center justify-center rounded-lg text-xs font-medium cursor-pointer transition-colors duration-200";
 
   const variants: Record<string, string> = {
     default:
-      "px-4 py-2 bg-[#2b2b2b] text-[#b4b4b4] hover:bg-[#a8a5ff] hover:text-[#121212] border border-[#3a3a3a]",
+      "px-3 py-2 bg-[#2b2b2b] text-[#b4b4b4] hover:bg-[#a8a5ff] hover:text-[#121212] border border-[#3a3a3a]",
     primary:
-      "px-5 py-2 bg-[#a8a5ff] hover:bg-[#b8b5ff] text-black",
+      "px-4 py-2 bg-[#a8a5ff] hover:bg-[#b8b5ff] text-black",
     icon:
-      "w-9 h-9 bg-[#2b2b2b] hover:bg-[#363636] text-[#b4b4b4] border border-[#3a3a3a]",
+      "w-8 h-8 bg-[#2b2b2b] hover:bg-[#363636] text-[#b4b4b4] border border-[#3a3a3a]",
   };
 
   return (
