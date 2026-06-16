@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Canvas } from "@repo/ui/components/Canvas";
 import {
   HamburgerMenu,
@@ -14,6 +14,10 @@ import type { ToolId } from "@repo/ui/components/Navbar";
 export default function Home() {
   const [zoom, setZoom] = useState(100);
   const [activeTool, setActiveTool] = useState<ToolId>("cursor");
+
+  // Refs for undo/redo functions exposed by Canvas
+  const undoRef = useRef<(() => void) | null>(null);
+  const redoRef = useRef<(() => void) | null>(null);
 
   // Keyboard shortcut handler (lifted from MainToolbar)
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
