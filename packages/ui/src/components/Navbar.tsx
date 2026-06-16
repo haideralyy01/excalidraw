@@ -1,6 +1,21 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+
+export type ToolId =
+  | "lock"
+  | "hand"
+  | "cursor"
+  | "rectangle"
+  | "diamond"
+  | "circle"
+  | "arrow"
+  | "line"
+  | "pen"
+  | "text"
+  | "image"
+  | "eraser"
+  | "more";
 import { Button } from "./Button";
 import {
   HamburgerIcon,
@@ -22,7 +37,7 @@ import {
 
 const fillableTools = new Set(["cursor", "rectangle", "diamond", "circle"]);
 
-const tools = [
+export const tools: { id: ToolId; icon: React.ComponentType<any>; shortcut: string }[] = [
   { id: "lock", icon: LockIcon, shortcut: "" },
   { id: "hand", icon: HandIcon, shortcut: "" },
   { id: "cursor", icon: CursorIcon, shortcut: "1" },
@@ -39,7 +54,7 @@ const tools = [
 ];
 
 // Build a map of shortcut key → tool id
-const shortcutMap: Record<string, string> = {};
+export const shortcutMap: Record<string, ToolId> = {};
 tools.forEach((tool) => {
   if (tool.shortcut) {
     shortcutMap[tool.shortcut] = tool.id;
@@ -64,32 +79,19 @@ export function HamburgerMenu() {
 
 // ─── Component 2: Main Toolbar (top-center) ─────────────────────────────────
 
-export function MainToolbar() {
-  const [activeTool, setActiveTool] = useState("cursor");
+interface MainToolbarProps {
+  activeTool: ToolId;
+  onToolChange: (toolId: ToolId) => void;
+}
+
+export function MainToolbar({ activeTool, onToolChange }: MainToolbarProps) {
   const [isLocked, setIsLocked] = useState(false);
 
-  // Keyboard shortcut handler
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    // Ignore if user is typing in an input/textarea
-    const tag = (e.target as HTMLElement).tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-
-    const toolId = shortcutMap[e.key];
-    if (toolId) {
-      setActiveTool(toolId);
-    }
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
-
-  const handleToolClick = (toolId: string) => {
+  const handleToolClick = (toolId: ToolId) => {
     if (toolId === "lock") {
       setIsLocked((prev) => !prev);
     } else {
-      setActiveTool(toolId);
+      onToolChange(toolId);
     }
   };
 
