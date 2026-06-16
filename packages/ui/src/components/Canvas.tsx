@@ -83,7 +83,8 @@ type InteractionMode =
   | { type: "panning"; lastSX: number; lastSY: number }
   | { type: "moving"; shapeId: string; startWX: number; startWY: number; origShape: Shape }
   | { type: "resizing"; shapeId: string; handle: HandleId; startWX: number; startWY: number; origShape: Shape }
-  | { type: "dragging-point"; shapeId: string; pointIndex: number; startWX: number; startWY: number; origPoints: [number, number][] };
+  | { type: "dragging-point"; shapeId: string; pointIndex: number; startWX: number; startWY: number; origPoints: [number, number][] }
+  | { type: "erasing"; hasErased: boolean };
 
 // ── Props ──
 interface CanvasProps {
@@ -407,6 +408,28 @@ export function Canvas({
         return;
       }
 
+      // ── ERASER TOOL: start erasing ──
+      if (activeTool === "eraser") {
+        undoStackRef.current.push([...shapesRef.current]);
+        redoStackRef.current = [];
+        modeRef.current = { type: "erasing", hasErased: false };
+
+        trailRef.current = [{ x: e.clientX, y: e.clientY, time: performance.now() }];
+        if (!animFrameRef.current) {
+          animFrameRef.current = requestAnimationFrame(animateTrail);
+        }
+
+        const remaining = shapesRef.current.filter(s => !hitTestShape(s, wx, wy, hitThreshold));
+        if (remaining.length !== shapesRef.current.length) {
+          setShapes(remaining);
+          modeRef.current = { type: "erasing", hasErased: true };
+          if (selectedShapeId && !remaining.some(s => s.id === selectedShapeId)) {
+            setSelectedShapeId(null);
+          }
+        }
+        return;
+      }
+
       // ── CURSOR TOOL: selection / move / resize / node drag ──
       if (activeTool === "cursor") {
         // 1. If we have a selected shape, check handles first
@@ -555,6 +578,26 @@ export function Canvas({
           });
           return;
         }
+        case "erasing": {
+          trailRef.current.push({ x: e.clientX, y: e.clientY, time: performance.now() });
+          if (trailRef.current.length > 200) {
+            trailRef.current = trailRef.current.slice(-150);
+          }
+          if (!animFrameRef.current) {
+            animFrameRef.current = requestAnimationFrame(animateTrail);
+          }
+
+          const hitThreshold = 8 / scale;
+          const remaining = shapesRef.current.filter(s => !hitTestShape(s, wx, wy, hitThreshold));
+          if (remaining.length !== shapesRef.current.length) {
+            setShapes(remaining);
+            modeRef.current = { type: "erasing", hasErased: true };
+            if (selectedShapeId && !remaining.some(s => s.id === selectedShapeId)) {
+              setSelectedShapeId(null);
+            }
+          }
+          return;
+        }
       }
 
       // ── Passive hover: update cursor ──
@@ -642,6 +685,16 @@ export function Canvas({
         case "dragging-point": {
           commitShapes([...shapesRef.current]);
           modeRef.current = { type: "none" };
+          return;
+        }
+        case "erasing": {
+          const modeVal = mode;
+          modeRef.current = { type: "none" };
+          if (modeVal.hasErased) {
+            onShapesChange?.(shapesRef.current);
+          } else {
+            undoStackRef.current.pop();
+          }
           return;
         }
       }
@@ -798,51 +851,21 @@ export function Canvas({
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
+    // Draw a smooth, tapered, solid grey line (wide at cursor head, narrow at tail)
     for (let i = 1; i < points.length; i++) {
       const prev = points[i - 1]!;
       const curr = points[i]!;
       const age = now - curr.time;
       const opacity = Math.max(0, 1 - age / TRAIL_MAX_AGE);
-      const dx = curr.x - prev.x;
-      const dy = curr.y - prev.y;
-      const len = Math.sqrt(dx * dx + dy * dy);
-      if (len < 0.5) continue;
-      const nx = -dy / len;
-      const ny = dx / len;
-      const waveOffset = Math.sin(i * WAVE_FREQUENCY * Math.PI * 2) * WAVE_AMPLITUDE * opacity;
-      const x1 = prev.x + nx * Math.sin((i - 1) * WAVE_FREQUENCY * Math.PI * 2) * WAVE_AMPLITUDE * Math.max(0, 1 - (now - prev.time) / TRAIL_MAX_AGE);
-      const y1 = prev.y + ny * Math.sin((i - 1) * WAVE_FREQUENCY * Math.PI * 2) * WAVE_AMPLITUDE * Math.max(0, 1 - (now - prev.time) / TRAIL_MAX_AGE);
-      const x2 = curr.x + nx * waveOffset;
-      const y2 = curr.y + ny * waveOffset;
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.strokeStyle = `rgba(168, 165, 255, ${opacity * 0.6})`;
-      ctx.lineWidth = Math.max(1, 3 * opacity);
-      ctx.stroke();
-    }
+      if (opacity <= 0) continue;
 
-    for (let i = 1; i < points.length; i++) {
-      const prev = points[i - 1]!;
-      const curr = points[i]!;
-      const age = now - curr.time;
-      const opacity = Math.max(0, 1 - age / TRAIL_MAX_AGE);
-      const dx = curr.x - prev.x;
-      const dy = curr.y - prev.y;
-      const len = Math.sqrt(dx * dx + dy * dy);
-      if (len < 0.5) continue;
-      const nx = -dy / len;
-      const ny = dx / len;
-      const waveOffset = Math.sin(i * WAVE_FREQUENCY * Math.PI * 2 + Math.PI) * WAVE_AMPLITUDE * 0.6 * opacity;
-      const x1 = prev.x + nx * Math.sin((i - 1) * WAVE_FREQUENCY * Math.PI * 2 + Math.PI) * WAVE_AMPLITUDE * 0.6 * Math.max(0, 1 - (now - prev.time) / TRAIL_MAX_AGE);
-      const y1 = prev.y + ny * Math.sin((i - 1) * WAVE_FREQUENCY * Math.PI * 2 + Math.PI) * WAVE_AMPLITUDE * 0.6 * Math.max(0, 1 - (now - prev.time) / TRAIL_MAX_AGE);
-      const x2 = curr.x + nx * waveOffset;
-      const y2 = curr.y + ny * waveOffset;
       ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.strokeStyle = `rgba(168, 165, 255, ${opacity * 0.3})`;
-      ctx.lineWidth = Math.max(0.5, 1.5 * opacity);
+      ctx.moveTo(prev.x, prev.y);
+      ctx.lineTo(curr.x, curr.y);
+      
+      // Smooth grey (semi-transparent, matching the reference image)
+      ctx.strokeStyle = `rgba(85, 85, 87, ${opacity * 0.7})`;
+      ctx.lineWidth = 14 * opacity;
       ctx.stroke();
     }
 
@@ -855,31 +878,15 @@ export function Canvas({
   }, []);
 
   useEffect(() => {
-    const overlay = overlayRef.current;
-    if (!overlay) return;
-
     if (activeTool !== "eraser") {
       trailRef.current = [];
       if (animFrameRef.current) {
         cancelAnimationFrame(animFrameRef.current);
         animFrameRef.current = 0;
       }
-      return;
+      clearOverlay();
     }
-
-    const handleMouseMove = (e: MouseEvent) => {
-      trailRef.current.push({ x: e.clientX, y: e.clientY, time: performance.now() });
-      if (trailRef.current.length > 200) {
-        trailRef.current = trailRef.current.slice(-150);
-      }
-      if (!animFrameRef.current) {
-        animFrameRef.current = requestAnimationFrame(animateTrail);
-      }
-    };
-
-    overlay.addEventListener("mousemove", handleMouseMove);
-    return () => overlay.removeEventListener("mousemove", handleMouseMove);
-  }, [activeTool, animateTrail]);
+  }, [activeTool, clearOverlay]);
 
   useEffect(() => {
     return () => {
