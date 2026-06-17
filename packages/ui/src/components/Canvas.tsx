@@ -99,6 +99,8 @@ interface CanvasProps {
   onShapesChange?: (shapes: Shape[]) => void;
   /** Fires when the local user draws a new shape */
   onShapeAdded?: (shape: Shape) => void;
+  /** Fires when the local user moves/resizes a shape */
+  onShapeUpdated?: (shape: Shape) => void;
   /** Fires when the local user deletes/erases a shape */
   onShapeDeleted?: (shapeId: string) => void;
 }
@@ -107,6 +109,8 @@ interface CanvasProps {
 export interface CanvasHandle {
   /** Add a shape received from another user (no undo push) */
   addRemoteShape: (shape: Shape) => void;
+  /** Update a shape received from another user (move/resize) */
+  updateRemoteShape: (shape: Shape) => void;
   /** Delete a shape received from another user */
   deleteRemoteShape: (shapeId: string) => void;
   /** Bulk-load shapes (e.g. from DB on room join) */
@@ -124,6 +128,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
   activeTool = "cursor",
   onShapesChange,
   onShapeAdded,
+  onShapeUpdated,
   onShapeDeleted,
 }, ref) {
   // ── Canvas refs ──
@@ -156,6 +161,9 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
         if (prev.some(s => s.id === shape.id)) return prev; // dedupe
         return [...prev, shape];
       });
+    },
+    updateRemoteShape(shape: Shape) {
+      setShapes(prev => prev.map(s => s.id === shape.id ? shape : s));
     },
     deleteRemoteShape(shapeId: string) {
       setShapes(prev => prev.filter(s => s.id !== shapeId));
@@ -712,18 +720,24 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
           return;
         }
         case "moving": {
-          // Commit the moved shape
+          // Commit the moved shape and notify
+          const movedShape = shapesRef.current.find(s => s.id === mode.shapeId);
           commitShapes([...shapesRef.current]);
+          if (movedShape) onShapeUpdated?.(movedShape);
           modeRef.current = { type: "none" };
           return;
         }
         case "resizing": {
+          const resizedShape = shapesRef.current.find(s => s.id === mode.shapeId);
           commitShapes([...shapesRef.current]);
+          if (resizedShape) onShapeUpdated?.(resizedShape);
           modeRef.current = { type: "none" };
           return;
         }
         case "dragging-point": {
+          const draggedShape = shapesRef.current.find(s => s.id === mode.shapeId);
           commitShapes([...shapesRef.current]);
+          if (draggedShape) onShapeUpdated?.(draggedShape);
           modeRef.current = { type: "none" };
           return;
         }

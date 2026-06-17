@@ -21,6 +21,7 @@ import {
   disconnectFromWebSocket,
   onWebSocketMessage,
   sendShapeAdd,
+  sendShapeUpdate,
   sendShapeDelete,
   getSelfUserId,
 } from "../../../lib/websocket";
@@ -117,6 +118,8 @@ export default function RoomPage({ params }: RoomPageProps) {
               const parsed = JSON.parse(data.message);
               if (parsed.action === "add" && parsed.shape && canvasRef.current) {
                 canvasRef.current.addRemoteShape(parsed.shape);
+              } else if (parsed.action === "update" && parsed.shape && canvasRef.current) {
+                canvasRef.current.updateRemoteShape(parsed.shape);
               } else if (parsed.action === "delete" && parsed.shapeId && canvasRef.current) {
                 canvasRef.current.deleteRemoteShape(parsed.shapeId);
               }
@@ -142,6 +145,8 @@ export default function RoomPage({ params }: RoomPageProps) {
             try {
               const parsed = JSON.parse(chat.message);
               if (parsed.action === "add" && parsed.shape?.id) {
+                shapesMap.set(parsed.shape.id, parsed.shape);
+              } else if (parsed.action === "update" && parsed.shape?.id) {
                 shapesMap.set(parsed.shape.id, parsed.shape);
               } else if (parsed.action === "delete" && parsed.shapeId) {
                 shapesMap.delete(parsed.shapeId);
@@ -176,9 +181,13 @@ export default function RoomPage({ params }: RoomPageProps) {
     };
   }, [roomName, router, addToast]);
 
-  // ── Shape callbacks: send to WS when local user draws/deletes ──
+  // ── Shape callbacks: send to WS when local user draws/updates/deletes ──
   const handleShapeAdded = useCallback((shape: any) => {
     sendShapeAdd(shape);
+  }, []);
+
+  const handleShapeUpdated = useCallback((shape: any) => {
+    sendShapeUpdate(shape);
   }, []);
 
   const handleShapeDeleted = useCallback((shapeId: string) => {
@@ -212,6 +221,7 @@ export default function RoomPage({ params }: RoomPageProps) {
         onZoomChange={setZoom}
         activeTool={activeTool}
         onShapeAdded={handleShapeAdded}
+        onShapeUpdated={handleShapeUpdated}
         onShapeDeleted={handleShapeDeleted}
       />
 

@@ -157,3 +157,11 @@ export function sendShapeAdd(shape: object) {
 export function sendShapeDelete(shapeId: string) {
   sendToRoom(JSON.stringify({ action: "delete", shapeId }));
 }
+
+/**
+ * Broadcast a shape update (move/resize) to the room.
+ * Sent as a chat message with JSON payload: { action: "update", shape: {...} }
+ */
+export function sendShapeUpdate(shape: object) {
+  sendToRoom(JSON.stringify({ action: "update", shape }));
+}
