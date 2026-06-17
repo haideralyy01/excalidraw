@@ -134,6 +134,17 @@ export function hitTestShape(
       return false;
     }
 
+    case "text": {
+      const { minX, minY, maxX, maxY } = getBounds(shape);
+      // Simple bounding-box test with threshold padding
+      return (
+        wx >= minX - threshold &&
+        wx <= maxX + threshold &&
+        wy >= minY - threshold &&
+        wy <= maxY + threshold
+      );
+    }
+
     default:
       return false;
   }

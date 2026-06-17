@@ -1,0 +1,10 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Excalidraw Fonts — Virgil (hand-drawn style)
+   Loaded from the official Excalidraw font CDN.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@font-face {
+  font-family: "Virgil";
+  src: url("https://virgil.excalidraw.com/Virgil.woff2") format("woff2");
+  font-display: swap;
+}

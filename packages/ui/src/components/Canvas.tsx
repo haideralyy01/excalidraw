@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useCallback, useState, forwardRef, useImperativeHandle } from "react";
 import rough from "roughjs";
 import type { Shape, ShapeType, HandleId } from "../types";
+import "../excalidraw-fonts.css";
 import { renderShape } from "../engine/shapeRenderer";
 import {
   type Camera,
@@ -58,7 +59,7 @@ const CURSOR_MAP: Record<string, string> = {
   arrow: "crosshair",
   line: "crosshair",
   pen: "crosshair",
-  text: "crosshair",
+  text: "text",
   image: "crosshair",
   eraser: ERASER_CURSOR_DATA_URI,
   lock: "default",
@@ -76,6 +77,13 @@ const TRAIL_MAX_AGE = 600;
 const WAVE_AMPLITUDE = 6;
 const WAVE_FREQUENCY = 0.12;
 
+// ── Text tool constants ──
+const TEXT_FONT_SIZE = 20;
+const TEXT_FONT_FAMILY = "Virgil, Segoe UI Emoji, Apple Color Emoji, sans-serif";
+const TEXT_LINE_HEIGHT = 1.35;
+const TEXT_MIN_WIDTH = 100; // minimum textarea width in px
+const TEXT_PADDING = 4;     // padding around text
+
 // ── Interaction modes ──
 type InteractionMode =
   | { type: "none" }
@@ -84,7 +92,8 @@ type InteractionMode =
   | { type: "moving"; shapeId: string; startWX: number; startWY: number; origShape: Shape }
   | { type: "resizing"; shapeId: string; handle: HandleId; startWX: number; startWY: number; origShape: Shape }
   | { type: "dragging-point"; shapeId: string; pointIndex: number; startWX: number; startWY: number; origPoints: [number, number][] }
-  | { type: "erasing"; hasErased: boolean };
+  | { type: "erasing"; hasErased: boolean }
+  | { type: "editing-text" };
 
 // ── Props ──
 interface CanvasProps {
@@ -174,7 +183,17 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
       });
     },
     updateRemoteShape(shape: Shape) {
-      setShapes(prev => prev.map(s => s.id === shape.id ? shape : s));
+      setShapes(prev => {
+        const idx = prev.findIndex(s => s.id === shape.id);
+        if (idx >= 0) {
+          // Update in place
+          const next = [...prev];
+          next[idx] = shape;
+          return next;
+        }
+        // Upsert: shape doesn't exist yet (e.g. live text broadcast arrived before final add)
+        return [...prev, shape];
+      });
     },
     deleteRemoteShape(shapeId: string) {
       setShapes(prev => prev.filter(s => s.id !== shapeId));
@@ -197,6 +216,18 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
 
   // ── Hand tool grab state ──
   const [isGrabbing, setIsGrabbing] = useState(false);
+
+  // ── Text editing state ──
+  const [textEditing, setTextEditing] = useState<{
+    worldX: number;
+    worldY: number;
+    text: string;
+    editingShapeId: string | null;  // null = creating new, string = editing existing
+  } | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textBroadcastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const textShapeIdRef = useRef<string | null>(null);  // tracks the in-progress shape id for live broadcast
+  const textReadyToCommitRef = useRef(false); // guards against premature onBlur
 
   // ════════════════════════════════════════════════════════════════════════════
   // HELPERS
@@ -586,6 +617,20 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
         return;
       }
 
+      // ── TEXT TOOL: start text editing ──
+      if (activeTool === "text") {
+        // If already editing text, commit the current one first
+        if (textEditing) {
+          commitTextShape();
+          return;
+        }
+        textReadyToCommitRef.current = false;
+        setTextEditing({ worldX: wx, worldY: wy, text: "", editingShapeId: null });
+        textShapeIdRef.current = crypto.randomUUID();
+        modeRef.current = { type: "editing-text" };
+        return;
+      }
+
       // ── CURSOR TOOL: selection / move / resize / node drag ──
       if (activeTool === "cursor") {
         // 1. If we have a selected shape, check handles first
@@ -865,16 +910,48 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
       }
     };
 
+    // ── dblclick — edit existing text shapes ──
+    const handleDblClick = (e: MouseEvent) => {
+      if (activeTool !== "cursor") return;
+      const c = cam();
+      const [wx, wy] = screenToWorld(e.clientX, e.clientY, c);
+      const scale = zoomScale(c);
+      const hitThreshold = 8 / scale;
+
+      // Find topmost text shape under cursor
+      for (let i = shapesRef.current.length - 1; i >= 0; i--) {
+        const s = shapesRef.current[i]!;
+        if (s.type === "text" && hitTestShape(s, wx, wy, hitThreshold)) {
+          // Open textarea for editing
+          setTextEditing({
+            worldX: s.x1,
+            worldY: s.y1,
+            text: s.text || "",
+            editingShapeId: s.id,
+          });
+          textShapeIdRef.current = s.id;
+          textReadyToCommitRef.current = false;
+          modeRef.current = { type: "editing-text" };
+          // Hide the canvas-rendered text while editing
+          setShapes(prev => prev.filter(sh => sh.id !== s.id));
+          setSelectedShapeId(null);
+          return;
+        }
+      }
+    };
+
     overlay.addEventListener("mousedown", handleMouseDown);
+    overlay.addEventListener("dblclick", handleDblClick);
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
 
     return () => {
       overlay.removeEventListener("mousedown", handleMouseDown);
+      overlay.removeEventListener("dblclick", handleDblClick);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [activeTool, selectedShapeId, drawPreview, clearOverlay, commitShapes, updateShapeLive, drawSelectionOverlay]);
+  }, [activeTool, selectedShapeId, drawPreview, clearOverlay, commitShapes, updateShapeLive, drawSelectionOverlay, textEditing]);
 
   // ════════════════════════════════════════════════════════════════════════════
   // UNDO / REDO
@@ -1077,6 +1154,204 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
   }, []);
 
   // ════════════════════════════════════════════════════════════════════════════
+  // TEXT EDITING — commit, input handler, auto-focus
+  // ════════════════════════════════════════════════════════════════════════════
+
+  /** Measure text bounds using an offscreen canvas */
+  const measureTextBounds = useCallback((text: string, fontSize: number, fontFamily: string) => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return { width: 0, height: fontSize };
+
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    const lines = text.split("\n");
+    const lineHeight = fontSize * TEXT_LINE_HEIGHT;
+    let maxWidth = 0;
+    for (const line of lines) {
+      const m = ctx.measureText(line || " ");  // measure at least a space for empty lines
+      if (m.width > maxWidth) maxWidth = m.width;
+    }
+    return {
+      width: Math.max(TEXT_MIN_WIDTH, maxWidth),
+      height: Math.max(lineHeight, lines.length * lineHeight),
+    };
+  }, []);
+
+  /** Commit the current text editing into a shape */
+  const commitTextShape = useCallback(() => {
+    if (!textEditing) return;
+    // Guard: don't commit until the user has actually interacted
+    if (!textReadyToCommitRef.current) return;
+    const { worldX, worldY, text, editingShapeId } = textEditing;
+
+    // Clear debounce timer
+    if (textBroadcastTimerRef.current) {
+      clearTimeout(textBroadcastTimerRef.current);
+      textBroadcastTimerRef.current = null;
+    }
+
+    // If text is empty, just cancel
+    if (!text.trim()) {
+      // If we were editing an existing shape, delete the live broadcast shape
+      if (editingShapeId) {
+        onShapeDeleted?.(editingShapeId);
+      } else if (textShapeIdRef.current) {
+        // Delete the live broadcast preview shape (if any was sent)
+        onShapeDeleted?.(textShapeIdRef.current);
+      }
+      setTextEditing(null);
+      textShapeIdRef.current = null;
+      modeRef.current = { type: "none" };
+      return;
+    }
+
+    const fontSize = TEXT_FONT_SIZE;
+    const fontFamily = TEXT_FONT_FAMILY;
+    const { width, height } = measureTextBounds(text, fontSize, fontFamily);
+
+    const shapeId = textShapeIdRef.current || editingShapeId || crypto.randomUUID();
+    const newShape: Shape = {
+      id: shapeId,
+      type: "text",
+      x1: worldX,
+      y1: worldY,
+      x2: worldX + width,
+      y2: worldY + height,
+      text,
+      fontSize,
+      fontFamily,
+      textAlign: "left",
+      options: { ...DEFAULT_SHAPE_OPTIONS },
+    };
+
+    if (editingShapeId) {
+      // Update existing shape
+      commitShapes([...shapesRef.current.filter(s => s.id !== editingShapeId), newShape]);
+      onShapeUpdated?.(newShape);
+    } else {
+      // Add new shape
+      commitShapes([...shapesRef.current, newShape]);
+      onShapeAdded?.(newShape);
+    }
+
+    setTextEditing(null);
+    textShapeIdRef.current = null;
+    modeRef.current = { type: "none" };
+  }, [textEditing, measureTextBounds, commitShapes, onShapeAdded, onShapeUpdated, onShapeDeleted]);
+
+  /** Handle text input changes with auto-resize and live broadcast */
+  const handleTextInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!textEditing) return;
+    const newText = e.target.value;
+    setTextEditing(prev => prev ? { ...prev, text: newText } : null);
+
+    // Auto-resize the textarea
+    const ta = e.target;
+    ta.style.height = "auto";
+    ta.style.width = "auto";
+    // Measure the content
+    const scale = cam().zoom / 100;
+    const fontSize = TEXT_FONT_SIZE * scale;
+    const { width, height } = measureTextBounds(newText || " ", TEXT_FONT_SIZE, TEXT_FONT_FAMILY);
+    ta.style.width = `${Math.max(TEXT_MIN_WIDTH * scale, width * scale + TEXT_PADDING * 2)}px`;
+    ta.style.height = `${Math.max(fontSize * TEXT_LINE_HEIGHT, height * scale + TEXT_PADDING)}px`;
+
+    // Debounced live broadcast
+    if (textBroadcastTimerRef.current) {
+      clearTimeout(textBroadcastTimerRef.current);
+    }
+    textBroadcastTimerRef.current = setTimeout(() => {
+      const shapeId = textShapeIdRef.current;
+      if (!shapeId || !newText.trim()) return;
+      const { width: w, height: h } = measureTextBounds(newText, TEXT_FONT_SIZE, TEXT_FONT_FAMILY);
+      const liveShape: Shape = {
+        id: shapeId,
+        type: "text",
+        x1: textEditing.worldX,
+        y1: textEditing.worldY,
+        x2: textEditing.worldX + w,
+        y2: textEditing.worldY + h,
+        text: newText,
+        fontSize: TEXT_FONT_SIZE,
+        fontFamily: TEXT_FONT_FAMILY,
+        textAlign: "left",
+        options: { ...DEFAULT_SHAPE_OPTIONS },
+      };
+      if (textEditing.editingShapeId) {
+        onShapeUpdated?.(liveShape);
+      } else {
+        // Send as update (remote will upsert by id)
+        onShapeUpdated?.(liveShape);
+      }
+    }, 300);
+  }, [textEditing, measureTextBounds, onShapeUpdated]);
+
+  /** Handle textarea keydown (Enter to commit, Shift+Enter for newline, Escape to cancel) */
+  const handleTextKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      // Cancel: revert if editing existing shape
+      if (textEditing?.editingShapeId) {
+        // The shape was removed from canvas for editing; we need to restore it
+        // Since we deleted it, fire delete for the broadcast preview
+        onShapeDeleted?.(textEditing.editingShapeId);
+      }
+      if (textBroadcastTimerRef.current) {
+        clearTimeout(textBroadcastTimerRef.current);
+        textBroadcastTimerRef.current = null;
+      }
+      setTextEditing(null);
+      textShapeIdRef.current = null;
+      modeRef.current = { type: "none" };
+      return;
+    }
+    // Tab - commit and prevent focus change
+    if (e.key === "Tab") {
+      e.preventDefault();
+      commitTextShape();
+      return;
+    }
+    // Stop propagation for all keys to prevent tool shortcuts while typing
+    e.stopPropagation();
+  }, [textEditing, commitTextShape, onShapeDeleted]);
+
+  /** Auto-focus textarea when textEditing starts */
+  useEffect(() => {
+    if (textEditing && textareaRef.current) {
+      const ta = textareaRef.current;
+      // Use requestAnimationFrame to ensure the textarea is fully mounted
+      requestAnimationFrame(() => {
+        ta.focus();
+        // If editing existing text, place cursor at end
+        if (textEditing.text) {
+          ta.selectionStart = ta.selectionEnd = textEditing.text.length;
+        }
+        // Set initial size
+        const scale = cam().zoom / 100;
+        const fontSize = TEXT_FONT_SIZE * scale;
+        if (!textEditing.text) {
+          ta.style.width = `${TEXT_MIN_WIDTH}px`;
+          ta.style.height = `${fontSize * TEXT_LINE_HEIGHT}px`;
+        } else {
+          const { width, height } = measureTextBounds(textEditing.text, TEXT_FONT_SIZE, TEXT_FONT_FAMILY);
+          ta.style.width = `${Math.max(TEXT_MIN_WIDTH * scale, width * scale + TEXT_PADDING * 2)}px`;
+          ta.style.height = `${Math.max(fontSize * TEXT_LINE_HEIGHT, height * scale + TEXT_PADDING)}px`;
+        }
+        // Mark as ready to commit AFTER focus is established
+        // This prevents onBlur from firing prematurely during initial render
+        setTimeout(() => { textReadyToCommitRef.current = true; }, 50);
+      });
+    }
+  }, [textEditing?.worldX, textEditing?.worldY]); // only re-run when position changes (new text creation)
+
+  /** Commit text when tool changes away from text */
+  useEffect(() => {
+    if (activeTool !== "text" && activeTool !== "cursor" && textEditing) {
+      commitTextShape();
+    }
+  }, [activeTool]);
+
+  // ════════════════════════════════════════════════════════════════════════════
   // CURSOR RESOLUTION
   // ════════════════════════════════════════════════════════════════════════════
 
@@ -1114,6 +1389,48 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
           pointerEvents: "auto",
         }}
       />
+      {/* Layer 3: Text editing textarea overlay */}
+      {textEditing && (() => {
+        const c = cam();
+        const scale = c.zoom / 100;
+        const [sx, sy] = worldToScreen(textEditing.worldX, textEditing.worldY, c);
+        const fontSize = TEXT_FONT_SIZE * scale;
+
+        return (
+          <textarea
+            ref={textareaRef}
+            value={textEditing.text}
+            onChange={handleTextInput}
+            onKeyDown={handleTextKeyDown}
+            onBlur={commitTextShape}
+            autoFocus
+            style={{
+              position: "fixed",
+              left: `${sx}px`,
+              top: `${sy}px`,
+              zIndex: 10,
+              fontSize: `${fontSize}px`,
+              fontFamily: TEXT_FONT_FAMILY,
+              lineHeight: `${TEXT_LINE_HEIGHT}`,
+              color: "#ffffff",
+              background: "transparent",
+              border: "1px solid rgba(79, 70, 229, 0.5)",
+              borderRadius: "2px",
+              outline: "none",
+              resize: "none",
+              overflow: "hidden",
+              padding: `${TEXT_PADDING}px`,
+              margin: 0,
+              minWidth: `${TEXT_MIN_WIDTH}px`,
+              minHeight: `${fontSize * TEXT_LINE_HEIGHT}px`,
+              whiteSpace: "pre",
+              wordBreak: "keep-all",
+              caretColor: "#a8a5ff",
+              transformOrigin: "top left",
+            }}
+          />
+        );
+      })()}
     </>
   );
 });
