@@ -79,40 +79,8 @@ export default function RoomPage({ params }: RoomPageProps) {
         // 2. Connect to WS and join the room
         await connectToWebSocket(dbRoomId);
 
-        // 3. Load existing shapes from DB (chat history)
-        try {
-          const chatsRes = await axios.get(`${API_BASE}/chats/${dbRoomId}`);
-          const chats: { message: string; userId: string }[] =
-            chatsRes.data.chats || [];
-
-          // Chats come in desc order — reverse to replay chronologically
-          const chronological = [...chats].reverse();
-
-          // Replay shape operations to build current canvas state
-          const shapesMap = new Map<string, object>();
-          for (const chat of chronological) {
-            try {
-              const parsed = JSON.parse(chat.message);
-              if (parsed.action === "add" && parsed.shape?.id) {
-                shapesMap.set(parsed.shape.id, parsed.shape);
-              } else if (parsed.action === "delete" && parsed.shapeId) {
-                shapesMap.delete(parsed.shapeId);
-              }
-            } catch {
-              // Not a shape message — skip (regular chat text)
-            }
-          }
-
-          const loadedShapes = Array.from(shapesMap.values());
-          if (loadedShapes.length > 0 && canvasRef.current) {
-            canvasRef.current.loadShapes(loadedShapes as any);
-            console.log("[Room] Loaded", loadedShapes.length, "shapes from DB");
-          }
-        } catch (err) {
-          console.warn("[Room] Could not load existing shapes:", err);
-        }
-
-        // 4. Listen for incoming WS messages (presence + shapes)
+        // 3. Register WS message handler IMMEDIATELY (before any async work)
+        //    This prevents missing user_joined events during the shapes fetch
         onWebSocketMessage((data: {
           type: string;
           userName?: string;
@@ -127,8 +95,6 @@ export default function RoomPage({ params }: RoomPageProps) {
             setConnectedUsers(
               data.users.filter((u) => u.name !== storedName)
             );
-            // Store our own userId from the room_users response
-            // (the server already includes us in the list)
           } else if (data.type === "user_joined" && data.userName) {
             setConnectedUsers((prev) => {
               if (prev.some((u) => u.name === data.userName)) return prev;
@@ -160,6 +126,39 @@ export default function RoomPage({ params }: RoomPageProps) {
             }
           }
         });
+
+        // 4. Load existing shapes from DB (chat history)
+        try {
+          const chatsRes = await axios.get(`${API_BASE}/chats/${dbRoomId}`);
+          const chats: { message: string; userId: string }[] =
+            chatsRes.data.chats || [];
+
+          // Chats come in desc order — reverse to replay chronologically
+          const chronological = [...chats].reverse();
+
+          // Replay shape operations to build current canvas state
+          const shapesMap = new Map<string, object>();
+          for (const chat of chronological) {
+            try {
+              const parsed = JSON.parse(chat.message);
+              if (parsed.action === "add" && parsed.shape?.id) {
+                shapesMap.set(parsed.shape.id, parsed.shape);
+              } else if (parsed.action === "delete" && parsed.shapeId) {
+                shapesMap.delete(parsed.shapeId);
+              }
+            } catch {
+              // Not a shape message — skip (regular chat text)
+            }
+          }
+
+          const loadedShapes = Array.from(shapesMap.values());
+          if (loadedShapes.length > 0 && canvasRef.current) {
+            canvasRef.current.loadShapes(loadedShapes as any);
+            console.log("[Room] Loaded", loadedShapes.length, "shapes from DB");
+          }
+        } catch (err) {
+          console.warn("[Room] Could not load existing shapes:", err);
+        }
       } catch (err: any) {
         console.error("[Room] Failed to connect:", err);
         const msg =
