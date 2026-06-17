@@ -4,19 +4,22 @@ import React from "react";
 import { AuthCard } from "@repo/ui/components/AuthCard";
 import { ExcalidrawLogo } from "@repo/ui/icons/index";
 import axios from "axios";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 
 const API_BASE = "http://localhost:8000/api/v1";
 
 export default function AuthPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/";
 
   const handleLogin = async (data: {email: string; password: string}) => {
     try {
       const response = await axios.post(`${API_BASE}/login`, data);
       localStorage.setItem("token", response.data.token);
-      router.push("/");
+      localStorage.setItem("userName", response.data.user.name);
+      router.push(redirectTo);
     } catch (err: any) {
       const msg = err.response?.data?.message || "Login failed";
       alert(msg);
@@ -27,7 +30,8 @@ export default function AuthPage() {
     try {
       const response = await axios.post(`${API_BASE}/signup`, data);
       localStorage.setItem("token", response.data.token);
-      router.push("/");
+      localStorage.setItem("userName", response.data.user.name);
+      router.push(redirectTo);
     } catch (err: any) {
       const msg = err.response?.data?.message || "Signup failed";
       alert(msg);

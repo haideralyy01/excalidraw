@@ -5,7 +5,7 @@ import React from "react";
 interface ButtonProps {
   children: React.ReactNode;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
-  variant?: "default" | "primary" | "icon";
+  variant?: "default" | "primary" | "icon" | "active";
   id?: string;
   className?: string;
   ariaLabel?: string;
@@ -29,6 +29,8 @@ export function Button({
       "px-4 py-2 bg-[#a8a5ff] hover:bg-[#b8b5ff] text-black",
     icon:
       "w-8 h-8 bg-[#2b2b2b] hover:bg-[#363636] text-[#b4b4b4] border border-[#3a3a3a]",
+    active:
+      "px-4 py-2 bg-[#6bcf7f] hover:bg-[#7ddb8f] text-[#121212]",
   };
 
   return (

@@ -142,13 +142,19 @@ export function MainToolbar({ activeTool, onToolChange }: MainToolbarProps) {
 
 // ─── Component 3: Action Buttons (top-right) ────────────────────────────────
 
-export function ActionButtons() {
+interface ActionButtonsProps {
+  onShareClick?: () => void;
+  /** When true, the Share button turns light green to indicate an active session */
+  isInRoom?: boolean;
+}
+
+export function ActionButtons({ onShareClick, isInRoom }: ActionButtonsProps) {
   return (
     <div className="fixed top-5 right-4 z-20 flex items-center gap-2">
       <Button id="btn-excalidraw-plus" variant="default">
         Excalidraw+
       </Button>
-      <Button id="btn-share" variant="primary">
+      <Button id="btn-share" variant={isInRoom ? "active" : "primary"} onClick={onShareClick}>
         Share
       </Button>
       <Button id="btn-copy" variant="icon" ariaLabel="Copy to clipboard">
@@ -190,7 +196,7 @@ export function ZoomControls({ zoom = 100, onZoomChange, onUndo, onRedo }: ZoomC
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
         </button>
-        <span className="px-3 text-xs font-medium text-[#b4b4b4] select-none min-w-[48px] text-center">
+        <span className="px-3 text-xs font-medium text-[#b4b4b4] select-none min-w-12 text-center">
           {zoom}%
         </span>
         <button
