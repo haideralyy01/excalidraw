@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import { Canvas } from "@repo/ui/components/Canvas";
+import type { CanvasHandle } from "@repo/ui/components/Canvas";
 import {
   HamburgerMenu,
   MainToolbar,
@@ -19,6 +20,9 @@ import {
   connectToWebSocket,
   disconnectFromWebSocket,
   onWebSocketMessage,
+  sendShapeAdd,
+  sendShapeDelete,
+  getSelfUserId,
 } from "../../../lib/websocket";
 
 const API_BASE = "http://localhost:8000/api/v1";
@@ -39,6 +43,9 @@ export default function RoomPage({ params }: RoomPageProps) {
   const [connectedUsers, setConnectedUsers] = useState<ConnectedUser[]>([]);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const { toasts, addToast, dismissToast } = useToasts();
+
+  // ── Canvas ref for imperative shape sync ──
+  const canvasRef = useRef<CanvasHandle>(null);
 
   const undoRef = useRef<(() => void) | null>(null);
   const redoRef = useRef<(() => void) | null>(null);
@@ -63,13 +70,49 @@ export default function RoomPage({ params }: RoomPageProps) {
 
     async function connectToRoom() {
       try {
+        // 1. Fetch the room's DB id from the slug
         const res = await axios.get(
           `${API_BASE}/room/${encodeURIComponent(roomName)}`
         );
         const dbRoomId: number = res.data.room.roomId;
 
+        // 2. Connect to WS and join the room
         await connectToWebSocket(dbRoomId);
 
+        // 3. Load existing shapes from DB (chat history)
+        try {
+          const chatsRes = await axios.get(`${API_BASE}/chats/${dbRoomId}`);
+          const chats: { message: string; userId: string }[] =
+            chatsRes.data.chats || [];
+
+          // Chats come in desc order — reverse to replay chronologically
+          const chronological = [...chats].reverse();
+
+          // Replay shape operations to build current canvas state
+          const shapesMap = new Map<string, object>();
+          for (const chat of chronological) {
+            try {
+              const parsed = JSON.parse(chat.message);
+              if (parsed.action === "add" && parsed.shape?.id) {
+                shapesMap.set(parsed.shape.id, parsed.shape);
+              } else if (parsed.action === "delete" && parsed.shapeId) {
+                shapesMap.delete(parsed.shapeId);
+              }
+            } catch {
+              // Not a shape message — skip (regular chat text)
+            }
+          }
+
+          const loadedShapes = Array.from(shapesMap.values());
+          if (loadedShapes.length > 0 && canvasRef.current) {
+            canvasRef.current.loadShapes(loadedShapes as any);
+            console.log("[Room] Loaded", loadedShapes.length, "shapes from DB");
+          }
+        } catch (err) {
+          console.warn("[Room] Could not load existing shapes:", err);
+        }
+
+        // 4. Listen for incoming WS messages (presence + shapes)
         onWebSocketMessage((data: {
           type: string;
           userName?: string;
@@ -78,24 +121,43 @@ export default function RoomPage({ params }: RoomPageProps) {
           message?: string;
           users?: { name: string }[];
         }) => {
+          // ── Presence events ──
           if (data.type === "room_users" && data.users) {
             const storedName = localStorage.getItem("userName") || "";
             setConnectedUsers(
               data.users.filter((u) => u.name !== storedName)
             );
+            // Store our own userId from the room_users response
+            // (the server already includes us in the list)
           } else if (data.type === "user_joined" && data.userName) {
             setConnectedUsers((prev) => {
               if (prev.some((u) => u.name === data.userName)) return prev;
               return [...prev, { name: data.userName! }];
             });
             addToast(`${data.userName} joined the room`, "join");
+
           } else if (data.type === "user_left" && data.userName) {
             setConnectedUsers((prev) =>
               prev.filter((u) => u.name !== data.userName)
             );
             addToast(`${data.userName} left the room`, "leave");
-          } else if (data.type === "chat") {
-            console.log("[Room] Chat from", data.sender, ":", data.message);
+
+          } else if (data.type === "chat" && data.message) {
+            // ── Shape events (encoded as chat messages) ──
+            // Skip messages from self (we already have these shapes locally)
+            if (data.sender === getSelfUserId()) return;
+
+            try {
+              const parsed = JSON.parse(data.message);
+              if (parsed.action === "add" && parsed.shape && canvasRef.current) {
+                canvasRef.current.addRemoteShape(parsed.shape);
+              } else if (parsed.action === "delete" && parsed.shapeId && canvasRef.current) {
+                canvasRef.current.deleteRemoteShape(parsed.shapeId);
+              }
+            } catch {
+              // Regular chat message — not a shape
+              console.log("[Room] Chat from", data.sender, ":", data.message);
+            }
           }
         });
       } catch (err: any) {
@@ -114,6 +176,15 @@ export default function RoomPage({ params }: RoomPageProps) {
       disconnectFromWebSocket();
     };
   }, [roomName, router, addToast]);
+
+  // ── Shape callbacks: send to WS when local user draws/deletes ──
+  const handleShapeAdded = useCallback((shape: any) => {
+    sendShapeAdd(shape);
+  }, []);
+
+  const handleShapeDeleted = useCallback((shapeId: string) => {
+    sendShapeDelete(shapeId);
+  }, []);
 
   // Keyboard shortcut handler
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -136,7 +207,14 @@ export default function RoomPage({ params }: RoomPageProps) {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden">
-      <Canvas zoom={zoom} onZoomChange={setZoom} activeTool={activeTool} />
+      <Canvas
+        ref={canvasRef}
+        zoom={zoom}
+        onZoomChange={setZoom}
+        activeTool={activeTool}
+        onShapeAdded={handleShapeAdded}
+        onShapeDeleted={handleShapeDeleted}
+      />
 
       <HamburgerMenu />
       <MainToolbar activeTool={activeTool} onToolChange={setActiveTool} />

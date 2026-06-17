@@ -2,6 +2,7 @@ const WS_URL = "ws://localhost:8080";
 
 let ws: WebSocket | null = null;
 let currentRoomId: number | null = null;
+let selfUserId: string | null = null;
 
 type MessageHandler = (data: any) => void;
 let onMessageHandler: MessageHandler | null = null;
@@ -38,6 +39,12 @@ export function connectToWebSocket(roomId: number): Promise<void> {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        // Capture our own userId from the server's connected event
+        if (data.type === "connected" && data.userId) {
+          selfUserId = data.userId;
+          console.log("[WS] Authenticated as userId:", selfUserId);
+          return;
+        }
         if (onMessageHandler) {
           onMessageHandler(data);
         }
@@ -81,6 +88,7 @@ export function disconnectFromWebSocket() {
   ws?.close();
   ws = null;
   currentRoomId = null;
+  selfUserId = null;
   onMessageHandler = null;
 }
 
@@ -114,4 +122,38 @@ export function sendToRoom(message: string) {
  */
 export function isConnected(): boolean {
   return ws !== null && ws.readyState === WebSocket.OPEN;
+}
+
+/**
+ * Get the current room's DB id (used to filter self-messages).
+ */
+export function getCurrentRoomId(): number | null {
+  return currentRoomId;
+}
+
+/**
+ * Get the authenticated user's ID (set by the server on connect).
+ */
+export function getSelfUserId(): string | null {
+  return selfUserId;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SHAPE SYNC HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Broadcast a newly drawn shape to the room.
+ * Sent as a chat message with JSON payload: { action: "add", shape: {...} }
+ */
+export function sendShapeAdd(shape: object) {
+  sendToRoom(JSON.stringify({ action: "add", shape }));
+}
+
+/**
+ * Broadcast a shape deletion to the room.
+ * Sent as a chat message with JSON payload: { action: "delete", shapeId: "..." }
+ */
+export function sendShapeDelete(shapeId: string) {
+  sendToRoom(JSON.stringify({ action: "delete", shapeId }));
 }

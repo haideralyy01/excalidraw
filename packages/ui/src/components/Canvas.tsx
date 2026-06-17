@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useCallback, useState } from "react";
+import React, { useRef, useEffect, useCallback, useState, forwardRef, useImperativeHandle } from "react";
 import rough from "roughjs";
 import type { Shape, ShapeType, HandleId } from "../types";
 import { renderShape } from "../engine/shapeRenderer";
@@ -97,9 +97,23 @@ interface CanvasProps {
   onZoomChange?: (zoom: number) => void;
   activeTool?: string;
   onShapesChange?: (shapes: Shape[]) => void;
+  /** Fires when the local user draws a new shape */
+  onShapeAdded?: (shape: Shape) => void;
+  /** Fires when the local user deletes/erases a shape */
+  onShapeDeleted?: (shapeId: string) => void;
 }
 
-export function Canvas({
+/** Methods exposed via ref for external shape control (WS sync) */
+export interface CanvasHandle {
+  /** Add a shape received from another user (no undo push) */
+  addRemoteShape: (shape: Shape) => void;
+  /** Delete a shape received from another user */
+  deleteRemoteShape: (shapeId: string) => void;
+  /** Bulk-load shapes (e.g. from DB on room join) */
+  loadShapes: (shapes: Shape[]) => void;
+}
+
+export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
   backgroundColor = "#121212",
   showGrid = true,
   gridColor = "rgba(255, 255, 255, 0.06)",
@@ -109,7 +123,9 @@ export function Canvas({
   onZoomChange,
   activeTool = "cursor",
   onShapesChange,
-}: CanvasProps) {
+  onShapeAdded,
+  onShapeDeleted,
+}, ref) {
   // ── Canvas refs ──
   const canvasRef = useRef<HTMLCanvasElement>(null);       // z:0 — background grid
   const drawCanvasRef = useRef<HTMLCanvasElement>(null);    // z:1 — committed shapes
@@ -132,6 +148,24 @@ export function Canvas({
   shapesRef.current = shapes;
   const undoStackRef = useRef<Shape[][]>([]);
   const redoStackRef = useRef<Shape[][]>([]);
+
+  // ── Expose imperative methods for remote shape sync ──
+  useImperativeHandle(ref, () => ({
+    addRemoteShape(shape: Shape) {
+      setShapes(prev => {
+        if (prev.some(s => s.id === shape.id)) return prev; // dedupe
+        return [...prev, shape];
+      });
+    },
+    deleteRemoteShape(shapeId: string) {
+      setShapes(prev => prev.filter(s => s.id !== shapeId));
+    },
+    loadShapes(newShapes: Shape[]) {
+      setShapes(newShapes);
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+    },
+  }), []);
 
   // ── Selection state ──
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
@@ -421,8 +455,11 @@ export function Canvas({
 
         const remaining = shapesRef.current.filter(s => !hitTestShape(s, wx, wy, hitThreshold));
         if (remaining.length !== shapesRef.current.length) {
+          // Find erased shapes and notify
+          const erasedIds = shapesRef.current.filter(s => hitTestShape(s, wx, wy, hitThreshold)).map(s => s.id);
           setShapes(remaining);
           modeRef.current = { type: "erasing", hasErased: true };
+          erasedIds.forEach(id => onShapeDeleted?.(id));
           if (selectedShapeId && !remaining.some(s => s.id === selectedShapeId)) {
             setSelectedShapeId(null);
           }
@@ -590,8 +627,10 @@ export function Canvas({
           const hitThreshold = 8 / scale;
           const remaining = shapesRef.current.filter(s => !hitTestShape(s, wx, wy, hitThreshold));
           if (remaining.length !== shapesRef.current.length) {
+            const erasedIds = shapesRef.current.filter(s => hitTestShape(s, wx, wy, hitThreshold)).map(s => s.id);
             setShapes(remaining);
             modeRef.current = { type: "erasing", hasErased: true };
+            erasedIds.forEach(id => onShapeDeleted?.(id));
             if (selectedShapeId && !remaining.some(s => s.id === selectedShapeId)) {
               setSelectedShapeId(null);
             }
@@ -662,6 +701,7 @@ export function Canvas({
           };
 
           commitShapes([...shapesRef.current, newShape]);
+          onShapeAdded?.(newShape);
           clearOverlay();
           drawSelectionOverlay();
           return;
@@ -758,6 +798,7 @@ export function Canvas({
       if ((e.key === "Delete" || e.key === "Backspace") && selectedShapeId) {
         e.preventDefault();
         commitShapes(shapesRef.current.filter(s => s.id !== selectedShapeId));
+        onShapeDeleted?.(selectedShapeId);
         setSelectedShapeId(null);
       }
     };
@@ -934,7 +975,7 @@ export function Canvas({
       />
     </>
   );
-}
+});
 
 // ════════════════════════════════════════════════════════════════════════════
 // UTILITY FUNCTIONS (outside component)
