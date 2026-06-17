@@ -140,12 +140,23 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
   const trailRef = useRef<TrailPoint[]>([]);
   const animFrameRef = useRef<number>(0);
 
-  // ── Camera state (pan) ──
+  // ── Camera state (pan targets) ──
   const [scrollX, setScrollX] = useState(0);
   const [scrollY, setScrollY] = useState(0);
-  const cameraRef = useRef<Camera>({ scrollX: 0, scrollY: 0, zoom: 100 });
-  // Keep cameraRef in sync
-  cameraRef.current = { scrollX, scrollY, zoom };
+
+  // ── Visual (interpolated) camera state ──
+  const [visualZoom, setVisualZoom] = useState(zoom);
+  const [visualScrollX, setVisualScrollX] = useState(0);
+  const [visualScrollY, setVisualScrollY] = useState(0);
+
+  // Keep camera refs in sync
+  const targetCameraRef = useRef<Camera>({ scrollX, scrollY, zoom });
+  targetCameraRef.current = { scrollX, scrollY, zoom };
+
+  const visualCameraRef = useRef<Camera>({ scrollX: visualScrollX, scrollY: visualScrollY, zoom: visualZoom });
+  visualCameraRef.current = { scrollX: visualScrollX, scrollY: visualScrollY, zoom: visualZoom };
+
+  const prevZoomRef = useRef(zoom);
 
   // ── Shape state ──
   const [shapes, setShapes] = useState<Shape[]>([]);
@@ -191,7 +202,107 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
   // HELPERS
   // ════════════════════════════════════════════════════════════════════════════
 
-  const cam = (): Camera => cameraRef.current;
+  const cam = (): Camera => visualCameraRef.current;
+  const targetCam = (): Camera => targetCameraRef.current;
+
+  // ── Track the focal point in world coordinates for smooth, wobble-free zooming ──
+  const zoomFocalRef = useRef<{ cx: number; cy: number; wx: number; wy: number } | null>(null);
+
+  // ── Effect to detect external zoom changes (e.g. from ZoomControls UI) and focus zoom on screen center ──
+  useEffect(() => {
+    if (zoom !== prevZoomRef.current) {
+      const oldZoom = prevZoomRef.current;
+      prevZoomRef.current = zoom;
+
+      // If zoomFocalRef.current is null, the zoom change is external (from navbar zoom buttons)
+      if (!zoomFocalRef.current) {
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        const current = visualCameraRef.current;
+        const scale = current.zoom / 100;
+        const wx = cx / scale - current.scrollX;
+        const wy = cy / scale - current.scrollY;
+        zoomFocalRef.current = { cx, cy, wx, wy };
+
+        const newScale = zoom / 100;
+        setScrollX(cx / newScale - wx);
+        setScrollY(cy / newScale - wy);
+      }
+    }
+  }, [zoom]);
+
+  // ── Camera animation loop for smooth zoom and pan ──
+  useEffect(() => {
+    let active = true;
+
+    const animate = () => {
+      if (!active) return;
+
+      const current = visualCameraRef.current;
+      const targetZoom = zoom;
+      const targetX = scrollX;
+      const targetY = scrollY;
+
+      const diffZ = targetZoom - current.zoom;
+      const thresholdZ = 0.01;
+
+      const focal = zoomFocalRef.current;
+
+      // If we are currently zooming (and have a focal point)
+      if (focal && Math.abs(diffZ) > thresholdZ) {
+        const nextZ = current.zoom + diffZ * 0.25;
+        const nextScale = nextZ / 100;
+
+        // Calculate scroll offsets to keep the focal point perfectly locked at the same screen position
+        const nextX = focal.cx / nextScale - focal.wx;
+        const nextY = focal.cy / nextScale - focal.wy;
+
+        setVisualZoom(nextZ);
+        setVisualScrollX(nextX);
+        setVisualScrollY(nextY);
+
+        requestAnimationFrame(animate);
+      } else {
+        // Zoom has finished, or we are not zooming.
+        // If we were zooming, snap everything to target zoom and target scroll to ensure no wobbly sliding at the end!
+        if (focal) {
+          setVisualZoom(targetZoom);
+          setVisualScrollX(targetX);
+          setVisualScrollY(targetY);
+          zoomFocalRef.current = null;
+        } else {
+          // Plain panning animation (no zoom happening)
+          const diffX = targetX - current.scrollX;
+          const diffY = targetY - current.scrollY;
+          const thresholdP = 0.1;
+
+          const needsPanAnim = Math.abs(diffX) > thresholdP || Math.abs(diffY) > thresholdP;
+
+          if (needsPanAnim) {
+            const nextX = current.scrollX + diffX * 0.25;
+            const nextY = current.scrollY + diffY * 0.25;
+
+            setVisualZoom(targetZoom);
+            setVisualScrollX(nextX);
+            setVisualScrollY(nextY);
+
+            requestAnimationFrame(animate);
+          } else {
+            // Snap directly to final targets
+            setVisualZoom(targetZoom);
+            setVisualScrollX(targetX);
+            setVisualScrollY(targetY);
+          }
+        }
+      }
+    };
+
+    animate();
+
+    return () => {
+      active = false;
+    };
+  }, [zoom, scrollX, scrollY]);
 
   /** Push current shapes to undo stack and update */
   const commitShapes = useCallback((next: Shape[]) => {
@@ -230,7 +341,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, width, height);
 
-    const scale = zoom / 100;
+    const scale = visualZoom / 100;
     const scaledSpacing = gridSpacing * scale;
 
     if (showGrid && scaledSpacing > 4) {
@@ -238,8 +349,8 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
       const dotRadius = Math.max(0.5, 1 * scale);
 
       // Offset grid by scroll so dots move with pan
-      const offsetX = (scrollX * scale) % scaledSpacing;
-      const offsetY = (scrollY * scale) % scaledSpacing;
+      const offsetX = (visualScrollX * scale) % scaledSpacing;
+      const offsetY = (visualScrollY * scale) % scaledSpacing;
 
       for (let x = offsetX; x < width; x += scaledSpacing) {
         for (let y = offsetY; y < height; y += scaledSpacing) {
@@ -249,7 +360,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
         }
       }
     }
-  }, [backgroundColor, showGrid, gridColor, gridSpacing, zoom, scrollX, scrollY]);
+  }, [backgroundColor, showGrid, gridColor, gridSpacing, visualZoom, visualScrollX, visualScrollY]);
 
   useEffect(() => {
     drawGrid();
@@ -312,10 +423,10 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
     return () => window.removeEventListener("resize", handleResize);
   }, [resizeDrawCanvas, redrawAllShapes, shapes]);
 
-  // Re-render shapes whenever they, zoom, or scroll change
+  // Re-render shapes whenever they, visualZoom, or visualScroll change
   useEffect(() => {
     redrawAllShapes(shapes);
-  }, [shapes, redrawAllShapes, zoom, scrollX, scrollY]);
+  }, [shapes, redrawAllShapes, visualZoom, visualScrollX, visualScrollY]);
 
   // ════════════════════════════════════════════════════════════════════════════
   // OVERLAY CANVAS (z:2) — resize
@@ -368,7 +479,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
     if (activeTool === "eraser") return;
     if (modeRef.current.type === "drawing") return;
     drawSelectionOverlay();
-  }, [selectedShapeId, shapes, zoom, scrollX, scrollY, drawSelectionOverlay, activeTool]);
+  }, [selectedShapeId, shapes, visualZoom, visualScrollX, visualScrollY, drawSelectionOverlay, activeTool]);
 
   // ════════════════════════════════════════════════════════════════════════════
   // SHAPE DRAWING — mouse handlers
@@ -833,8 +944,16 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
         const direction = e.deltaY < 0 ? 1 : -1;
         const newZoom = Math.min(300, Math.max(10, zoom + direction * 10));
         if (onZoomChange) {
-          const c = cam();
+          const c = targetCam();
           const { scrollX: sx, scrollY: sy } = zoomTowardPoint(e.clientX, e.clientY, c, newZoom);
+          
+          // Set focal point at cursor based on visual camera to keep animation starting smoothly
+          const vis = visualCameraRef.current;
+          const visScale = vis.zoom / 100;
+          const wx = e.clientX / visScale - vis.scrollX;
+          const wy = e.clientY / visScale - vis.scrollY;
+          zoomFocalRef.current = { cx: e.clientX, cy: e.clientY, wx, wy };
+
           setScrollX(sx);
           setScrollY(sy);
           onZoomChange(newZoom);
@@ -842,7 +961,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
       } else {
         // Plain scroll → pan
         e.preventDefault();
-        const s = zoomScale(cam());
+        const s = zoomScale(targetCam());
         setScrollX(prev => prev - e.deltaX / s);
         setScrollY(prev => prev - e.deltaY / s);
       }
@@ -863,8 +982,16 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
           // Zoom toward center of screen
           const cx = window.innerWidth / 2;
           const cy = window.innerHeight / 2;
-          const c = cam();
+          const c = targetCam();
           const { scrollX: sx, scrollY: sy } = zoomTowardPoint(cx, cy, c, newZoom);
+          
+          // Set focal point at screen center based on visual camera to keep animation starting smoothly
+          const vis = visualCameraRef.current;
+          const visScale = vis.zoom / 100;
+          const wx = cx / visScale - vis.scrollX;
+          const wy = cy / visScale - vis.scrollY;
+          zoomFocalRef.current = { cx, cy, wx, wy };
+
           setScrollX(sx);
           setScrollY(sy);
           onZoomChange(newZoom);
