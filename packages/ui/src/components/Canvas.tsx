@@ -3,7 +3,6 @@
 import React, { useRef, useEffect, useCallback, useState, forwardRef, useImperativeHandle } from "react";
 import rough from "roughjs";
 import type { Shape, ShapeType, HandleId } from "../types";
-import "../excalidraw-fonts.css";
 import { renderShape } from "../engine/shapeRenderer";
 import {
   type Camera,
