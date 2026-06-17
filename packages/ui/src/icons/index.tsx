@@ -27,3 +27,8 @@ export { CloseIcon } from "./CloseIcon";
 export { StopIcon } from "./StopIcon";
 export { CopyIcon } from "./CopyIcon";
 export { LockClosedIcon } from "./LockClosedIcon";
+export { ZoomOutIcon } from "./ZoomOutIcon";
+export { ZoomInIcon } from "./ZoomInIcon";
+export { UndoIcon } from "./UndoIcon";
+export { RedoIcon } from "./RedoIcon";
+

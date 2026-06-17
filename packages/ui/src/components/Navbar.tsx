@@ -225,82 +225,11 @@ export function ActionButtons({
   );
 }
 
-// ─── Component 4: Zoom Controls (bottom-left) ──────────────────────────────
+// ─── Zoom Controls (re-exported from ZoomControls.tsx) ──────────────────────
 
-interface ZoomControlsProps {
-  zoom?: number;
-  onZoomChange?: (zoom: number) => void;
-  onUndo?: () => void;
-  onRedo?: () => void;
-}
-
-export function ZoomControls({ zoom = 100, onZoomChange, onUndo, onRedo }: ZoomControlsProps) {
-  const handleZoomIn = () => {
-    onZoomChange?.(Math.min(zoom + 10, 300));
-  };
-
-  const handleZoomOut = () => {
-    onZoomChange?.(Math.max(zoom - 10, 10));
-  };
-
-  return (
-    <div className="fixed bottom-4 left-4 z-20 flex items-center gap-2">
-      {/* Zoom group */}
-      <div className="flex items-center bg-[#232329] rounded-lg shadow-lg shadow-black/30 overflow-hidden">
-        <button
-          id="btn-zoom-out"
-          onClick={handleZoomOut}
-          className="flex items-center justify-center w-9 h-9 text-[#b4b4b4] hover:bg-[#2f2f35] transition-colors duration-150 cursor-pointer"
-          aria-label="Zoom out"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
-        <span className="px-3 text-xs font-medium text-[#b4b4b4] select-none min-w-12 text-center">
-          {zoom}%
-        </span>
-        <button
-          id="btn-zoom-in"
-          onClick={handleZoomIn}
-          className="flex items-center justify-center w-9 h-9 text-[#b4b4b4] hover:bg-[#2f2f35] transition-colors duration-150 cursor-pointer"
-          aria-label="Zoom in"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Undo / Redo group */}
-      <div className="flex items-center bg-[#232329] rounded-lg shadow-lg shadow-black/30 overflow-hidden">
-        <button
-          id="btn-undo"
-          onClick={onUndo}
-          className="flex items-center justify-center w-9 h-9 text-[#b4b4b4] hover:bg-[#2f2f35] transition-colors duration-150 cursor-pointer"
-          aria-label="Undo"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 10h10a5 5 0 0 1 5 5v0a5 5 0 0 1-5 5H8" />
-            <polyline points="7 14 3 10 7 6" />
-          </svg>
-        </button>
-        <button
-          id="btn-redo"
-          onClick={onRedo}
-          className="flex items-center justify-center w-9 h-9 text-[#b4b4b4] hover:bg-[#2f2f35] transition-colors duration-150 cursor-pointer"
-          aria-label="Redo"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 10H11a5 5 0 0 0-5 5v0a5 5 0 0 0 5 5h5" />
-            <polyline points="17 14 21 10 17 6" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-}
+import { ZoomControls } from "./ZoomControls";
+export { ZoomControls };
+export type { ZoomControlsProps } from "./ZoomControls";
 
 // ─── Legacy Wrapper (backward compatibility) ────────────────────────────────
 
@@ -315,3 +244,4 @@ export function Navbar() {
     </>
   );
 }
+

@@ -8,9 +8,9 @@ import {
   HamburgerMenu,
   MainToolbar,
   ActionButtons,
-  ZoomControls,
   shortcutMap,
 } from "@repo/ui/components/Navbar";
+import { ZoomControls } from "@repo/ui/components/ZoomControls";
 import type { ToolId } from "@repo/ui/components/Navbar";
 import { ShareDialog } from "@repo/ui/components/ShareDialog";
 import type { ConnectedUser } from "@repo/ui/components/ShareDialog";
