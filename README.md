@@ -18,7 +18,7 @@
 
 ## Overview
 
-Excalidraw is a full-stack real-time collaborative drawing board built inside a Turborepo monorepo with pnpm workspaces. Users can sign up, create or join collaborative rooms, draw shapes (rectangles, circles, diamonds, arrows, lines, and freehand), undo/redo edits locally, pan and zoom smoothly, and collaborate in real-time. Canvas actions are broadcast via a WebSocket server and stored in a PostgreSQL database for persistence.
+Excalidraw is a full-stack real-time collaborative drawing board built inside a Turborepo monorepo with pnpm workspaces. Users can sign up, create or join collaborative rooms, draw shapes (rectangles, circles, diamonds, arrows, and lines), pan and zoom smoothly, and collaborate in real-time. Canvas actions are broadcast via a WebSocket server and stored in a PostgreSQL database for persistence.
 
 ## Table of Contents
 
@@ -44,10 +44,10 @@ Excalidraw is a full-stack real-time collaborative drawing board built inside a 
 | Module | Description |
 |--------|-------------|
 | Shared Rooms | Authenticated users can create or join rooms using a shared Room slug |
-| Canvas Drawing | Draw rectangles, diamonds, circles, straight lines, arrows, and freehand cursor tools |
+| Canvas Drawing | Draw rectangles, diamonds, circles, straight lines, and arrows |
+| Canvas Erasing | Delete shapes from the board using the interactive eraser tool |
 | Real-time Sync | Shape creation, updates (moving/resizing), and deletions are synchronized across users via WebSockets |
 | Smooth Zoom & Pan | Damped visual zoom centering on the mouse cursor or screen center, and smooth pan camera controls |
-| History | Local undo/redo stacks for editing shapes before committing or broadcasting them |
 | Active Presence | Shows active user counts on the Share button badge and lists online users inside the dialog |
 | Authentication | Sign up and Log in using email/password with secure JWT tokens |
 | Canvas Persistence | Replays shape modification history from the PostgreSQL database when joining a room |
