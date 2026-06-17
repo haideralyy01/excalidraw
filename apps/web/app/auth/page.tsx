@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import { AuthCard } from "@repo/ui/components/AuthCard";
 import { ExcalidrawLogo } from "@repo/ui/icons/index";
 import axios from "axios";
@@ -9,7 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 const API_BASE = "http://localhost:8000/api/v1";
 
-export default function AuthPage() {
+function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/";
@@ -107,5 +107,13 @@ export default function AuthPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#121212] flex items-center justify-center text-white font-medium text-sm">Loading...</div>}>
+      <AuthContent />
+    </Suspense>
   );
 }

@@ -61,9 +61,11 @@ export default function Home() {
       );
       // Navigate to room page — WS connection happens there
       router.push(`/room/${encodeURIComponent(roomName)}`);
+      return true;
     } catch (err: any) {
       const msg = err.response?.data?.message || "Failed to create room";
       alert(msg);
+      return false;
     }
   };
 
@@ -74,6 +76,7 @@ export default function Home() {
       await axios.get(`${API_BASE}/room/${encodeURIComponent(roomName)}`);
       // Navigate to room page — WS connection happens there
       router.push(`/room/${encodeURIComponent(roomName)}`);
+      return true;
     } catch (err: any) {
       const status = err.response?.status;
       if (status === 404) {
@@ -81,6 +84,7 @@ export default function Home() {
       } else {
         alert(err.response?.data?.message || "Failed to join room");
       }
+      return false;
     }
   };
 

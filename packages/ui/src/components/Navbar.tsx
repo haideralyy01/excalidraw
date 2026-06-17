@@ -161,6 +161,8 @@ interface ActionButtonsProps {
   onShareClick?: () => void;
   /** When true, the Share button turns light green to indicate an active session */
   isInRoom?: boolean;
+  /** Number of active users in the room (including self) */
+  activeUserCount?: number;
   /** The logged-in user's display name */
   userName?: string;
   /** Whether the user is logged in */
@@ -172,6 +174,7 @@ interface ActionButtonsProps {
 export function ActionButtons({
   onShareClick,
   isInRoom,
+  activeUserCount = 0,
   userName,
   isLoggedIn,
   onLoginClick,
@@ -197,9 +200,24 @@ export function ActionButtons({
           Login
         </Button>
       )}
-      <Button id="btn-share" variant={isInRoom ? "active" : "primary"} onClick={onShareClick}>
-        Share
-      </Button>
+      <div className="relative">
+        <Button id="btn-share" variant={isInRoom ? "active" : "primary"} onClick={onShareClick}>
+          Share
+        </Button>
+        {/* Active user count badge */}
+        {isInRoom && activeUserCount > 0 && (
+          <span
+            className="absolute -bottom-1.5 -right-1.5 flex items-center justify-center min-w-5 h-5 px-1 rounded-full text-[10px] font-bold shadow-lg pointer-events-none"
+            style={{
+              backgroundColor: "#1b7d3a",
+              color: "#ffffff",
+              border: "2px solid #232329",
+            }}
+          >
+            {activeUserCount}
+          </span>
+        )}
+      </div>
       <Button id="btn-copy" variant="icon" ariaLabel="Copy to clipboard">
         <ClipboardIcon size={14} />
       </Button>

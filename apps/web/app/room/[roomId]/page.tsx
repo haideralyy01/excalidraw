@@ -230,6 +230,7 @@ export default function RoomPage({ params }: RoomPageProps) {
       <ActionButtons
         onShareClick={() => setIsShareOpen(true)}
         isInRoom
+        activeUserCount={1 + connectedUsers.length}
         userName={userName}
         isLoggedIn={!!userName}
       />

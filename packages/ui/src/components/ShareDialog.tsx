@@ -20,9 +20,9 @@ export interface ShareDialogProps {
   /** The current user's display name (from localStorage) */
   userName?: string;
   /** Called when the user clicks "Create Room" — plug in your backend call */
-  onCreateRoom?: (roomName: string) => void | Promise<void>;
+  onCreateRoom?: (roomName: string) => void | Promise<void> | boolean | Promise<boolean>;
   /** Called when the user clicks "Join Room" — plug in your WS join logic */
-  onJoinRoom?: (roomName: string) => void | Promise<void>;
+  onJoinRoom?: (roomName: string) => void | Promise<void> | boolean | Promise<boolean>;
   /** Called when the user clicks "Disconnect" */
   onStopSession?: () => void;
   /** If set, dialog opens directly in active-session mode (used by /room/[roomId]) */
@@ -184,18 +184,32 @@ export function ShareDialog({
   const handleCreateRoom = async () => {
     if (!roomName.trim()) return;
     const name = roomName.trim();
-    setActiveRoomName(name);
-    if (onCreateRoom) await onCreateRoom(name);
-    setView("active-session");
+    try {
+      if (onCreateRoom) {
+        const res = await onCreateRoom(name);
+        if (res === false) return;
+      }
+      setActiveRoomName(name);
+      setView("active-session");
+    } catch (err) {
+      console.error("Failed to create room:", err);
+    }
   };
 
   // Join room
   const handleJoinRoom = async () => {
     if (!roomName.trim()) return;
     const name = roomName.trim();
-    setActiveRoomName(name);
-    if (onJoinRoom) await onJoinRoom(name);
-    setView("active-session");
+    try {
+      if (onJoinRoom) {
+        const res = await onJoinRoom(name);
+        if (res === false) return;
+      }
+      setActiveRoomName(name);
+      setView("active-session");
+    } catch (err) {
+      console.error("Failed to join room:", err);
+    }
   };
 
   // Disconnect
