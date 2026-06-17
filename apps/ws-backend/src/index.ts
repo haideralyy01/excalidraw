@@ -59,6 +59,9 @@ wss.on("connection", (ws, request) => {
             rooms: []
         });
 
+        // Send userId back so the client can filter self-messages
+        ws.send(JSON.stringify({ type: "connected", userId: decodedUser.userId }));
+
         ws.on("message", async (message) => {
             const parsedData = JSON.parse(message.toString());
 
