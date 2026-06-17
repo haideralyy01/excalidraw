@@ -13,6 +13,7 @@ import {
 import type { ToolId } from "@repo/ui/components/Navbar";
 import { ShareDialog } from "@repo/ui/components/ShareDialog";
 import type { ConnectedUser } from "@repo/ui/components/ShareDialog";
+import { ToastContainer, useToasts } from "@repo/ui/components/Toast";
 import axios from "axios";
 import {
   connectToWebSocket,
@@ -34,9 +35,10 @@ export default function RoomPage({ params }: RoomPageProps) {
   const [zoom, setZoom] = useState(100);
   const [activeTool, setActiveTool] = useState<ToolId>("cursor");
   const [isShareOpen, setIsShareOpen] = useState(true);
-  const [userName, setUserName] = useState("Anonymous");
+  const [userName, setUserName] = useState("");
   const [connectedUsers, setConnectedUsers] = useState<ConnectedUser[]>([]);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const { toasts, addToast, dismissToast } = useToasts();
 
   const undoRef = useRef<(() => void) | null>(null);
   const redoRef = useRef<(() => void) | null>(null);
@@ -50,29 +52,24 @@ export default function RoomPage({ params }: RoomPageProps) {
 
   // ── Connect to WebSocket on mount ──
   useEffect(() => {
-    // Prevent double-connect in React strict mode
     if (hasConnected.current) return;
     hasConnected.current = true;
 
     const token = localStorage.getItem("token");
     if (!token) {
-      // Not logged in — redirect to auth with return URL
       router.push(`/auth?redirect=/room/${encodeURIComponent(roomName)}`);
       return;
     }
 
     async function connectToRoom() {
       try {
-        // 1. Fetch the room's DB id from the slug
         const res = await axios.get(
           `${API_BASE}/room/${encodeURIComponent(roomName)}`
         );
         const dbRoomId: number = res.data.room.roomId;
 
-        // 2. Connect to WS server and join the room
         await connectToWebSocket(dbRoomId);
 
-        // 3. Listen for incoming messages (presence + chat)
         onWebSocketMessage((data: {
           type: string;
           userName?: string;
@@ -82,23 +79,21 @@ export default function RoomPage({ params }: RoomPageProps) {
           users?: { name: string }[];
         }) => {
           if (data.type === "room_users" && data.users) {
-            // Full user list received on join (excludes self — self is shown by ShareDialog)
             const storedName = localStorage.getItem("userName") || "";
             setConnectedUsers(
               data.users.filter((u) => u.name !== storedName)
             );
           } else if (data.type === "user_joined" && data.userName) {
-            // A new user joined the room
             setConnectedUsers((prev) => {
-              // Avoid duplicates
               if (prev.some((u) => u.name === data.userName)) return prev;
               return [...prev, { name: data.userName! }];
             });
+            addToast(`${data.userName} joined the room`, "join");
           } else if (data.type === "user_left" && data.userName) {
-            // A user left the room
             setConnectedUsers((prev) =>
               prev.filter((u) => u.name !== data.userName)
             );
+            addToast(`${data.userName} left the room`, "leave");
           } else if (data.type === "chat") {
             console.log("[Room] Chat from", data.sender, ":", data.message);
           }
@@ -115,11 +110,10 @@ export default function RoomPage({ params }: RoomPageProps) {
 
     connectToRoom();
 
-    // Cleanup: disconnect when leaving the page
     return () => {
       disconnectFromWebSocket();
     };
-  }, [roomName, router]);
+  }, [roomName, router, addToast]);
 
   // Keyboard shortcut handler
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -146,20 +140,28 @@ export default function RoomPage({ params }: RoomPageProps) {
 
       <HamburgerMenu />
       <MainToolbar activeTool={activeTool} onToolChange={setActiveTool} />
-      <ActionButtons onShareClick={() => setIsShareOpen(true)} isInRoom />
+      <ActionButtons
+        onShareClick={() => setIsShareOpen(true)}
+        isInRoom
+        userName={userName}
+        isLoggedIn={!!userName}
+      />
       <ZoomControls zoom={zoom} onZoomChange={setZoom} />
 
-      {/* Connection error toast */}
+      {/* Connection error banner */}
       {connectionError && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-lg bg-red-500/90 text-white text-sm font-medium shadow-lg">
           {connectionError}
         </div>
       )}
 
+      {/* Join/leave toast notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
       <ShareDialog
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
-        userName={userName}
+        userName={userName || "Anonymous"}
         onStopSession={handleStopSession}
         activeRoom={roomName}
         connectedUsers={connectedUsers}

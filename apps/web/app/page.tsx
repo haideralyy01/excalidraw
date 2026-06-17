@@ -21,7 +21,8 @@ export default function Home() {
   const [zoom, setZoom] = useState(100);
   const [activeTool, setActiveTool] = useState<ToolId>("cursor");
   const [isShareOpen, setIsShareOpen] = useState(false);
-  const [userName, setUserName] = useState("Anonymous");
+  const [userName, setUserName] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const undoRef = useRef<(() => void) | null>(null);
   const redoRef = useRef<(() => void) | null>(null);
@@ -29,7 +30,11 @@ export default function Home() {
   // Load user name from localStorage
   useEffect(() => {
     const storedName = localStorage.getItem("userName");
-    if (storedName) setUserName(storedName);
+    const token = localStorage.getItem("token");
+    if (storedName && token) {
+      setUserName(storedName);
+      setIsLoggedIn(true);
+    }
   }, []);
 
   // Keyboard shortcut handler
@@ -90,7 +95,12 @@ export default function Home() {
 
       <HamburgerMenu />
       <MainToolbar activeTool={activeTool} onToolChange={setActiveTool} />
-      <ActionButtons onShareClick={() => setIsShareOpen(true)} />
+      <ActionButtons
+        onShareClick={() => setIsShareOpen(true)}
+        userName={userName}
+        isLoggedIn={isLoggedIn}
+        onLoginClick={() => router.push("/auth")}
+      />
       <ZoomControls zoom={zoom} onZoomChange={setZoom} />
 
       <ShareDialog

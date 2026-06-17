@@ -140,20 +140,63 @@ export function MainToolbar({ activeTool, onToolChange }: MainToolbarProps) {
   );
 }
 
+// ─── Avatar color helper ─────────────────────────────────────────────────────
+
+const avatarColors = [
+  "#6bcf7f", "#f5a5a5", "#a5c8f5", "#f5d5a5", "#c5a5f5",
+  "#a5f5e0", "#f5a5d5", "#d5f5a5", "#f5c5a5", "#a5b5f5",
+];
+
+function getAvatarColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return avatarColors[Math.abs(hash) % avatarColors.length] || avatarColors[0]!;
+}
+
 // ─── Component 3: Action Buttons (top-right) ────────────────────────────────
 
 interface ActionButtonsProps {
   onShareClick?: () => void;
   /** When true, the Share button turns light green to indicate an active session */
   isInRoom?: boolean;
+  /** The logged-in user's display name */
+  userName?: string;
+  /** Whether the user is logged in */
+  isLoggedIn?: boolean;
+  /** Called when the Login button is clicked */
+  onLoginClick?: () => void;
 }
 
-export function ActionButtons({ onShareClick, isInRoom }: ActionButtonsProps) {
+export function ActionButtons({
+  onShareClick,
+  isInRoom,
+  userName,
+  isLoggedIn,
+  onLoginClick,
+}: ActionButtonsProps) {
+  const initial = userName ? userName.charAt(0).toUpperCase() : "";
+  const color = userName ? getAvatarColor(userName) : "#a8a5ff";
+
   return (
     <div className="fixed top-5 right-4 z-20 flex items-center gap-2">
-      <Button id="btn-excalidraw-plus" variant="default">
-        Excalidraw+
-      </Button>
+      {/* Profile avatar (logged in) */}
+      {isLoggedIn && userName && (
+        <div
+          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 cursor-default"
+          style={{ backgroundColor: color, color: "#121212" }}
+          title={userName}
+        >
+          {initial}
+        </div>
+      )}
+      {/* Login button (not logged in) */}
+      {!isLoggedIn && (
+        <Button id="btn-login" variant="default" onClick={onLoginClick}>
+          Login
+        </Button>
+      )}
       <Button id="btn-share" variant={isInRoom ? "active" : "primary"} onClick={onShareClick}>
         Share
       </Button>
