@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="apps/web/app/favicon.ico" alt="Excalidraw Logo" width="100" />
+  <img src="apps/web/app/icon.svg" alt="Excalidraw Logo" width="100" />
 
   # Excalidraw
 
@@ -44,10 +44,12 @@ Excalidraw is a full-stack real-time collaborative drawing board built inside a 
 | Module | Description |
 |--------|-------------|
 | Shared Rooms | Authenticated users can create or join rooms using a shared Room slug |
-| Canvas Drawing | Draw rectangles, diamonds, circles, straight lines, and arrows |
+| Canvas Drawing | Draw rectangles, diamonds, circles, straight lines, arrows, and write custom text elements |
+| Shape Selection & Editing | Select shapes, drag to move them, resize using bounding box handles (for rectangles, circles, diamonds), or insert/drag control points on lines and arrows |
 | Canvas Erasing | Delete shapes from the board using the interactive eraser tool |
 | Real-time Sync | Shape creation, updates (moving/resizing), and deletions are synchronized across users via WebSockets |
 | Smooth Zoom & Pan | Damped visual zoom centering on the mouse cursor or screen center, and smooth pan camera controls |
+| Keyboard Shortcuts | Press hotkeys (1-9, 0) to quickly switch tools (Cursor, Rectangle, Diamond, Circle, Arrow, Line, Pen, Text, Image, Eraser) |
 | Active Presence | Shows active user counts on the Share button badge and lists online users inside the dialog |
 | Authentication | Sign up and Log in using email/password with secure JWT tokens |
 | Canvas Persistence | Replays shape modification history from the PostgreSQL database when joining a room |
